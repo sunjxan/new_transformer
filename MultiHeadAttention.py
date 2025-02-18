@@ -1,6 +1,48 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+def scaled_dot_product_attention(query, key, value, mask=None, dropout=None):
+    """
+    缩放点积注意力机制实现
+    Args:
+        query: 查询张量, shape (batch_size, num_heads, seq_len_q, d_k)
+        key: 键张量, shape (batch_size, num_heads, seq_len_k, d_k)
+        value: 值张量, shape (batch_size, num_heads, seq_len_k, d_v)
+        mask: 掩码张量, shape (batch_size, 1, seq_len_q, seq_len_k) 或可广播形状
+
+    Returns:
+        注意力输出: shape (batch_size, num_heads, seq_len_q, d_v)
+        注意力权重: shape (batch_size, num_heads, seq_len_q, seq_len_k)
+    """
+    # 计算query和key的点积得分
+    scores = torch.matmul(query, key.transpose(-2, -1))  # Q·K^T
+    # scores shape: (batch_size, num_heads, seq_len_q, seq_len_k)
+
+    # 缩放操作：除以sqrt(d_k)防止梯度消失
+    d_k = query.size(-1)  # 获取query的最后一个维度d_k
+    scores = scores / math.sqrt(d_k)
+    # scores shape保持不变: (batch_size, num_heads, seq_len_q, seq_len_k)
+
+    # 应用掩码（如果需要）
+    if mask is not None:
+        # 将mask中为True/1的位置替换为极小的值（softmax后趋近于0）
+        scores = scores.masked_fill(mask == 0, -1e9)  
+        # mask需要能广播到scores的形状
+
+    # 计算注意力权重（最后一维进行softmax）
+    p_attn = torch.softmax(scores, dim=-1)
+    # p_attn shape: (batch_size, num_heads, seq_len_q, seq_len_k)
+
+    if dropout is not None:
+        p_attn = dropout(p_attn)
+
+    # 将注意力权重应用到value上
+    output = torch.matmul(p_attn, value)
+    # output shape: (batch_size, num_heads, seq_len_q, d_v)
+
+    return output, p_attn
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads, dropout=0.1):
@@ -50,21 +92,12 @@ class MultiHeadAttention(nn.Module):
         k = k.transpose(1, 2)
         v = v.transpose(1, 2)
         
-        # 计算注意力分数 (batch_size, num_heads, seq_len_q, seq_len_kv)
-        scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.tensor(self.d_k, dtype=torch.float32))
-        
         # 应用掩码（如果存在）
         if mask is not None:
             # 扩展掩码维度以匹配多头 (batch_size, 1, seq_len_q, seq_len_kv) -> 广播到num_heads
             mask = mask.unsqueeze(1)
-            scores = scores.masked_fill(mask == 0, -1e9)
-        
-        # 计算注意力权重
-        attn_weights = F.softmax(scores, dim=-1)
-        attn_weights = self.dropout(attn_weights)
-        
-        # 应用注意力权重到value (batch_size, num_heads, seq_len_q, d_k)
-        output = torch.matmul(attn_weights, v)
+
+        output, attn_weights = scaled_dot_product_attention(q, k, v, mask, self.dropout)
         
         # 转置回维度 (batch_size, seq_len_q, num_heads, d_k)
         output = output.transpose(1, 2).contiguous()
