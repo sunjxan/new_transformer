@@ -53,7 +53,7 @@ class MultiHeadAttention(nn.Module):
             num_heads: 注意力头的数量
             dropout: dropout概率
         """
-        super(MultiHeadAttention, self).__init__()
+        super().__init__()
         assert d_model % num_heads == 0, "d_model必须能被num_heads整除"
         
         self.d_model = d_model
@@ -83,21 +83,21 @@ class MultiHeadAttention(nn.Module):
         batch_size = q.size(0)
         
         # 线性变换 + 分割多头
-        q = self.W_q(q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_q, num_heads, d_k)
-        k = self.W_k(k).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
-        v = self.W_v(v).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
+        query = self.W_q(q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_q, num_heads, d_k)
+        key = self.W_k(k).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
+        value = self.W_v(v).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
         
         # 转置维度以便矩阵计算 (batch_size, num_heads, seq_len, d_k)
-        q = q.transpose(1, 2)
-        k = k.transpose(1, 2)
-        v = v.transpose(1, 2)
+        query = query.transpose(1, 2)
+        key = key.transpose(1, 2)
+        value = value.transpose(1, 2)
         
         # 应用掩码（如果存在）
         if mask is not None:
             # 扩展掩码维度以匹配多头 (batch_size, 1, seq_len_q, seq_len_kv) -> 广播到num_heads
             mask = mask.unsqueeze(1)
 
-        output, attn_weights = scaled_dot_product_attention(q, k, v, mask, self.dropout)
+        output, attn_weights = scaled_dot_product_attention(query, key, value, mask, self.dropout)
         
         # 转置回维度 (batch_size, seq_len_q, num_heads, d_k)
         output = output.transpose(1, 2).contiguous()
