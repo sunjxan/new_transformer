@@ -1,30 +1,8 @@
-import math
-import numpy as np
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-
+import numpy as np # 导入numpy库
+import torch # 导入torch库
+import torch.nn as nn # 导入torch.nn库
 d_k = 64 # K(=Q)维度
 d_v = 64 # V维度
-
-# 定义缩放点积注意力
-# query, key, value [batch_size, n_heads, length, dim_q/dim_k/dim_v] (dim_q=dim_k)
-# mask [batch_size, n_heads, length, length]
-def attention(query, key, value, mask=None, dropout=None):
-    d_k = query.size(-1)
-    # scores [batch_size, n_heads, length, length]
-    scores = torch.matmul(query, key.transpose(-2, -1)) / math.sqrt(d_k)
-    if mask is not None:
-        scores = scores.masked_fill(mask == 0, -1e9)
-    # p_attn [batch_size, n_heads, length, length]
-    p_attn = scores.softmax(dim=-1)
-    if dropout is not None:
-        p_attn = dropout(p_attn)
-    # [batch_size, n_heads, length, dim_v]
-    return torch.matmul(p_attn, value), p_attn
-
-
 # 定义缩放点积注意力类
 class ScaledDotProductAttention(nn.Module):
     def __init__(self):
@@ -86,7 +64,7 @@ class MultiHeadAttention(nn.Module):
         # attn_mask [batch_size, n_heads, len_q, len_k]
         #----------------------------------------------------------------- 
         # 使用缩放点积注意力计算上下文和注意力权重
-        context, weights = attention(q_s, k_s, v_s, attn_mask)
+        context, weights = ScaledDotProductAttention()(q_s, k_s, v_s, attn_mask)
         #-------------------------维度信息-------------------------------- 
         # context [batch_size, n_heads, len_q, dim_v]
         # weights [batch_size, n_heads, len_q, len_k]
@@ -170,7 +148,7 @@ def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_q = seq_q.size()
     batch_size, len_k = seq_k.size()
     # 生成布尔类型张量
-    pad_attn_mask = seq_k.data.unsqueeze(1)  # <PAD>token的编码值为0
+    pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)  # <PAD>token的编码值为0
     #-------------------------维度信息--------------------------------
     # pad_attn_mask 的维度是 [batch_size,1,len_k]
     #-----------------------------------------------------------------
