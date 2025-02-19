@@ -107,4 +107,4 @@ class MultiHeadAttention(nn.Module):
         # 最终线性变换
         output = self.W_o(output)
         
-        return output, attn_weights
+        return output

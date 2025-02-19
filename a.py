@@ -182,7 +182,7 @@ class EncoderLayer(nn.Module):
         #-------------------------维度信息--------------------------------
         # enc_outputs 的维度是 [batch_size, seq_len, embedding_dim] 
         #-----------------------------------------------------------------
-        return enc_outputs, attn_weights # 返回编码器输出和每层编码器的注意力权重
+        return enc_outputs # 返回编码器输出和每层编码器的注意力权重
 
 # 定义编码器类
 n_layers = 6  # 设置Encoder的层数
@@ -212,16 +212,14 @@ class Encoder(nn.Module):
         #-------------------------维度信息--------------------------------
         # enc_self_attn_mask 的维度是 [batch_size, len_q, len_k]        
         #-----------------------------------------------------------------
-        enc_self_attn_weights = [] # 初始化 enc_self_attn_weights
         # 通过编码器层 [batch_size, seq_len, embedding_dim]
         for layer in self.layers: 
-            enc_outputs, enc_self_attn_weight = layer(enc_outputs, enc_self_attn_mask)
-            enc_self_attn_weights.append(enc_self_attn_weight)
+            enc_outputs = layer(enc_outputs, enc_self_attn_mask)
         #-------------------------维度信息--------------------------------
         # enc_outputs 的维度是 [batch_size, seq_len, embedding_dim] 维度与 enc_inputs 相同
         # enc_self_attn_weights 是一个列表，每个元素的维度是[batch_size, n_heads, seq_len, seq_len]          
         #-----------------------------------------------------------------
-        return enc_outputs, enc_self_attn_weights # 返回编码器输出和编码器注意力权重
+        return enc_outputs # 返回编码器输出和编码器注意力权重
 
 # 生成后续注意力掩码的函数，用于在多头自注意力计算中忽略未来信息
 def get_attn_subsequent_mask(seq):
@@ -281,7 +279,7 @@ class DecoderLayer(nn.Module):
         # dec_enc_attn 的维度是 [batch_size, n_heads, target_len, source_len]   
         #-----------------------------------------------------------------
         # 返回解码器层输出，每层的自注意力和解码器-编码器注意力权重
-        return dec_outputs, dec_self_attn, dec_enc_attn
+        return dec_outputs
 
 # 定义解码器类
 n_layers = 6  # 设置Decoder的层数
@@ -320,20 +318,17 @@ class Decoder(nn.Module):
         # dec_self_attn_mask 的维度是 [batch_size, target_len, target_len]
         # dec_enc_attn_mask 的维度是 [batch_size, target_len, source_len]
          #-----------------------------------------------------------------       
-        dec_self_attns, dec_enc_attns = [], [] # 初始化 dec_self_attns, dec_enc_attns
         # 通过解码器层 [batch_size, seq_len, embedding_dim]
         for layer in self.layers:
-            dec_outputs, dec_self_attn, dec_enc_attn = layer(dec_outputs, enc_outputs, 
+            dec_outputs = layer(dec_outputs, enc_outputs, 
                                                dec_self_attn_mask, dec_enc_attn_mask)
-            dec_self_attns.append(dec_self_attn)
-            dec_enc_attns.append(dec_enc_attn)
         #-------------------------维度信息--------------------------------
         # dec_outputs 的维度是 [batch_size, target_len, embedding_dim]
         # dec_self_attns 是一个列表，每个元素的维度是 [batch_size, n_heads, target_len, target_len]
         # dec_enc_attns 是一个列表，每个元素的维度是 [batch_size, n_heads, target_len, source_len]
         #----------------------------------------------------------------- 
         # 返回解码器输出，解码器自注意力和解码器-编码器注意力权重       
-        return dec_outputs, dec_self_attns, dec_enc_attns
+        return dec_outputs
 
 # 定义Transformer模型
 class Transformer(nn.Module):
@@ -349,14 +344,14 @@ class Transformer(nn.Module):
         # dec_inputs 的维度是 [batch_size, target_seq_len]
         #-----------------------------------------------------------------        
         # 将输入传递给编码器，并获取编码器输出和自注意力权重        
-        enc_outputs, enc_self_attns = self.encoder(enc_inputs)
+        enc_outputs = self.encoder(enc_inputs)
         #-------------------------维度信息--------------------------------
         # enc_outputs 的维度是 [batch_size, source_len, embedding_dim]
         # enc_self_attns 是一个列表，每个元素的维度是 [batch_size, n_heads, src_seq_len, src_seq_len]        
         #-----------------------------------------------------------------
         # 将编码器输出、解码器输入和编码器输入传递给解码器
         # 获取解码器输出、解码器自注意力权重和编码器-解码器注意力权重     
-        dec_outputs, dec_self_attns, dec_enc_attns = self.decoder(dec_inputs, enc_inputs, enc_outputs)
+        dec_outputs = self.decoder(dec_inputs, enc_inputs, enc_outputs)
         #-------------------------维度信息--------------------------------
         # dec_outputs 的维度是 [batch_size, target_len, embedding_dim]
         # dec_self_attns 是一个列表，每个元素的维度是 [batch_size, n_heads, tgt_seq_len, tgt_seq_len]
@@ -368,7 +363,7 @@ class Transformer(nn.Module):
         # dec_logits 的维度是 [batch_size, tgt_seq_len, tgt_vocab_size]
         #-----------------------------------------------------------------
         # 返回预测值,编码器自注意力权重，解码器自注意力权重，解码器-编码器注意力权重
-        return dec_logits, enc_self_attns, dec_self_attns, dec_enc_attns
+        return dec_logits
 
 sentences = [
     ['咖哥 喜欢 小冰', 'KaGe likes XiaoBing'],
@@ -438,7 +433,7 @@ epochs = 5 # 训练轮次
 for epoch in range(epochs): # 训练100轮
     optimizer.zero_grad() # 梯度清零
     enc_inputs, dec_inputs, target_batch = corpus.make_batch(batch_size) # 创建训练数据
-    outputs, _, _, _ = model(enc_inputs, dec_inputs) # 获取模型输出 
+    outputs = model(enc_inputs, dec_inputs) # 获取模型输出 
     loss = criterion(outputs.view(-1, len(corpus.tgt_vocab)), target_batch.view(-1)) # 计算损失
     if (epoch + 1) % 1 == 0: # 打印损失
         print(f"Epoch: {epoch + 1:04d} cost = {loss:.6f}")
@@ -447,7 +442,7 @@ for epoch in range(epochs): # 训练100轮
 
 # 创建一个大小为1的批次，目标语言序列dec_inputs在测试阶段，仅包含句子开始符号<sos>
 enc_inputs, dec_inputs, target_batch = corpus.make_batch(batch_size=1,test_batch=True) 
-predict, enc_self_attns, dec_self_attns, dec_enc_attns = model(enc_inputs, dec_inputs) # 用模型进行翻译
+predict = model(enc_inputs, dec_inputs) # 用模型进行翻译
 predict = predict.view(-1, len(corpus.tgt_vocab)) # 将预测结果维度重塑
 predict = predict.data.max(1, keepdim=True)[1] # 找到每个位置概率最大的单词的索引
 # 解码预测的输出，将所预测的目标句子中的索引转换为单词
