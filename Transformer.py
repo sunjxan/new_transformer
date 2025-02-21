@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from Encoder import Encoder
 from Decoder import Decoder
@@ -93,7 +92,7 @@ class Generator(nn.Module):
         logits = self.proj(decoder_output)  # shape: (batch_size, seq_len, vocab_size)
 
         # 2. 可选：应用Softmax（实际训练中通常直接使用logits计算交叉熵损失）
-        # probs = F.softmax(logits, dim=-1)  # shape: (batch_size, seq_len, vocab_size)
+        # probs = torch.softmax(logits, dim=-1)  # shape: (batch_size, seq_len, vocab_size)
         
         return logits  # 直接返回logits（更高效，避免重复计算Softmax）
 
@@ -123,8 +122,8 @@ class Transformer(nn.Module):
         self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
         
         # 3. 编码器和解码器
-        self.encoder = Encoder(num_encoder_layers, d_model, num_heads, d_ff, dropout, max_seq_len)
-        self.decoder = Decoder(num_decoder_layers, d_model, num_heads, d_ff, dropout, max_seq_len)
+        self.encoder = Encoder(num_encoder_layers, d_model, num_heads, d_ff, dropout)
+        self.decoder = Decoder(num_decoder_layers, d_model, num_heads, d_ff, dropout)
         
         # 4. 最终线性层
         self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
@@ -135,8 +134,8 @@ class Transformer(nn.Module):
         Args:
             src (Tensor): 源序列 (batch_size, src_seq_len)
             tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
-            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len) 或 (batch_size, src_seq_len, src_seq_len)
-            tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len) 或 (batch_size, tgt_seq_len, tgt_seq_len)
+            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
+            tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
             memory_mask (Tensor): Encoder 到 Decoder 的掩码 (可选)
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)

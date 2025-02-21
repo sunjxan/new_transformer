@@ -88,12 +88,11 @@ class Encoder(nn.Module):
         Returns:
             output (Tensor): 编码后的序列 (batch_size, seq_len, d_model)
         """
-  
         # 1. 逐层通过 EncoderLayer
         for layer in self.layers:
             x = layer(x, mask)  # 每层输出保持 (batch_size, seq_len, d_model)
-        
+
         # 2. 最终 LayerNorm（可选，部分实现在每层内部已包含）
         x = self.norm(x)
-        
+
         return x

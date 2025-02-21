@@ -109,5 +109,7 @@ class Decoder(nn.Module):
         # 逐层传递输入
         for layer in self.layers:
             x = layer(x, enc_output, tgt_mask, src_mask)
+
         x = self.norm(x)  # 最终归一化
+
         return x
