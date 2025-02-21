@@ -6,7 +6,7 @@ from PositionwiseFeedForward import PositionwiseFeedForward
 from SublayerConnection import SublayerConnection
 
 class EncoderLayer(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
+    def __init__(self, d_model, num_heads, d_ff, dropout=0.1, norm_first=True):
         """
         Transformer的单个编码器层。
         
@@ -25,8 +25,8 @@ class EncoderLayer(nn.Module):
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
         
         # 3. 层归一化（LayerNorm） + Dropout层
-        self.sublayer1 = SublayerConnection(d_model, dropout)
-        self.sublayer2 = SublayerConnection(d_model, dropout)
+        self.sublayer1 = SublayerConnection(d_model, dropout, norm_first)
+        self.sublayer2 = SublayerConnection(d_model, dropout, norm_first)
     
     def forward(self, x, mask=None):
         """
@@ -49,7 +49,7 @@ class EncoderLayer(nn.Module):
         return x  # 最终输出shape: (batch_size, seq_len, d_model)
 
 class Encoder(nn.Module):
-    def __init__(self, num_layers, d_model, num_heads, d_ff, dropout=0.1):
+    def __init__(self, num_layers, d_model, num_heads, d_ff, dropout=0.1, norm_first=True):
         """
         Transformer Encoder 模块
         Args:
@@ -63,9 +63,11 @@ class Encoder(nn.Module):
         
         # 创建多个 Encoder 层
         self.layers = nn.ModuleList([
-            EncoderLayer(d_model, num_heads, d_ff, dropout) 
+            EncoderLayer(d_model, num_heads, d_ff, dropout, norm_first) 
             for _ in range(num_layers)
         ])
+
+        self.norm = nn.LayerNorm(d_model) if norm_first else None  # 最终归一化层
 
     def forward(self, x, mask=None):
         """
@@ -79,5 +81,8 @@ class Encoder(nn.Module):
         # 逐层通过 EncoderLayer
         for layer in self.layers:
             x = layer(x, mask)  # 每层输出保持 (batch_size, seq_len, d_model)
+
+        if self.norm:
+            x = self.norm(x)  # 最终归一化
 
         return x
