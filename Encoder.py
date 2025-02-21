@@ -33,7 +33,7 @@ class EncoderLayer(nn.Module):
     
     def forward(self, x, mask=None):
         """
-        前向传播函数。
+        前向传播
         
         Args:
             x (torch.Tensor): 输入序列，shape: (batch_size, seq_len, d_model)

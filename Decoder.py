@@ -38,7 +38,7 @@ class DecoderLayer(nn.Module):
     
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
-        前向传播函数。
+        前向传播
         
         Args:
             x (torch.Tensor): 目标序列输入，shape: (batch_size, tgt_seq_len, d_model)
@@ -77,8 +77,7 @@ class DecoderLayer(nn.Module):
 class Decoder(nn.Module):
     def __init__(self, num_layers, d_model, num_heads, d_ff, dropout=0.1):
         """
-        Transformer解码器，由多个DecoderLayer堆叠而成。
-        
+        Transformer Decoder 模块
         Args:
             num_layers (int): 解码器层数。
             d_model (int): 输入的特征维度。
@@ -87,16 +86,17 @@ class Decoder(nn.Module):
             dropout (float): Dropout概率，默认为0.1。
         """
         super().__init__()
+
         self.layers = nn.ModuleList([
             DecoderLayer(d_model, num_heads, d_ff, dropout)
             for _ in range(num_layers)
         ])
+
         self.norm = nn.LayerNorm(d_model)  # 最终归一化层
     
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
         前向传播
-        
         Args:
             x (torch.Tensor): 目标序列输入，shape: (batch_size, tgt_seq_len, d_model)
             enc_output (torch.Tensor): 编码器输出，shape: (batch_size, src_seq_len, d_model)

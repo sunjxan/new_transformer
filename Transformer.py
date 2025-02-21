@@ -12,11 +12,9 @@ class Embedding(nn.Module):
         self.d_model = d_model
     
     def forward(self, x):
-        '''
-        词嵌入后缩放
-        数值稳定性：在后续的注意力机制中，点积操作 Q·K^T 的结果会除以 sqrt(d_k)（其中 d_k = d_model）。在嵌入阶段提前乘以 sqrt(d_model)，可以保持数值量级的一致性。
-        梯度控制：防止词嵌入的初始值过小，导致梯度消失。
-        '''
+        # 词嵌入后缩放
+        # 数值稳定性：在后续的注意力机制中，点积操作 Q·K^T 的结果会除以 sqrt(d_k)（其中 d_k = d_model）。在嵌入阶段提前乘以 sqrt(d_model)，可以保持数值量级的一致性。
+        # 梯度控制：防止词嵌入的初始值过小，导致梯度消失。
         return self.embedding(x) * math.sqrt(self.d_model)
 
 class PositionalEncoding(nn.Module):
@@ -58,7 +56,7 @@ class PositionalEncoding(nn.Module):
 
     def forward(self, x):
         """
-        前向传播函数。
+        前向传播
         
         Args:
             x (torch.Tensor): 输入序列，shape: (batch_size, seq_len, d_model)
@@ -92,7 +90,7 @@ class Generator(nn.Module):
 
     def forward(self, decoder_output):
         """
-        前向传播函数。
+        前向传播
         
         Args:
             decoder_output (torch.Tensor): 
@@ -101,12 +99,8 @@ class Generator(nn.Module):
         Returns:
             torch.Tensor: 词汇表logits（未归一化的概率分数），shape: (batch_size, seq_len, vocab_size)
         """
-        # 1. 线性投影
         # decoder_output shape: (batch_size, seq_len, d_model)
         logits = self.proj(decoder_output)  # shape: (batch_size, seq_len, vocab_size)
-
-        # 2. 可选：应用Softmax（实际训练中通常直接使用logits计算交叉熵损失）
-        # probs = torch.softmax(logits, dim=-1)  # shape: (batch_size, seq_len, vocab_size)
         
         return logits  # 直接返回logits（更高效，避免重复计算Softmax）
 
