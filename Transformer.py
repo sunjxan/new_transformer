@@ -55,7 +55,7 @@ class PositionalEncoding(nn.Module):
         # 从预计算的位置编码矩阵中截取与输入序列长度匹配的部分
         # self.pe[:, :x.size(1)] 的shape: (1, seq_len, d_model)
         # 通过广播机制，与输入x的shape (batch_size, seq_len, d_model) 相加
-        x = x + self.pe[:, :x.size(1)].requires_grad_(False)
+        x = x + self.pe[:, :x.size(1)].detach()
         
         # 应用Dropout
         x = self.dropout(x)

@@ -44,7 +44,7 @@ class DecoderLayer(nn.Module):
             x (torch.Tensor): 目标序列输入，shape: (batch_size, tgt_seq_len, d_model)
             enc_output (torch.Tensor): 编码器输出，shape: (batch_size, src_seq_len, d_model)
             tgt_mask (torch.Tensor, optional): 目标序列掩码，shape: (batch_size, tgt_seq_len, tgt_seq_len)
-            src_mask (torch.Tensor, optional): 源序列掩码，shape: (batch_size, 1, src_seq_len)
+            src_mask (torch.Tensor, optional): 源序列掩码，shape: (batch_size, tgt_seq_len, src_seq_len)
         
         Returns:
             torch.Tensor: 解码器层输出，shape: (batch_size, tgt_seq_len, d_model)
@@ -101,7 +101,7 @@ class Decoder(nn.Module):
             x (torch.Tensor): 目标序列输入，shape: (batch_size, tgt_seq_len, d_model)
             enc_output (torch.Tensor): 编码器输出，shape: (batch_size, src_seq_len, d_model)
             tgt_mask (torch.Tensor, optional): 目标序列掩码，shape: (batch_size, tgt_seq_len, tgt_seq_len)
-            src_mask (torch.Tensor, optional): 源序列掩码，shape: (batch_size, 1, src_seq_len)
+            src_mask (torch.Tensor, optional): 源序列掩码，shape: (batch_size, tgt_seq_len, src_seq_len)
         
         Returns:
             torch.Tensor: 解码器输出，shape: (batch_size, tgt_seq_len, d_model)
