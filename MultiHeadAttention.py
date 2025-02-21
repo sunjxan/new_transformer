@@ -88,7 +88,7 @@ class MultiHeadAttention(nn.Module):
             输出: (batch_size, seq_len_q, d_model)
             注意力权重: (batch_size, num_heads, seq_len_q, seq_len_kv)
         """
-        batch_size = q.size(0)
+        batch_size = Q.size(0)
         
         # 线性变换 + 分割多头 + 转置维度
         Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)  # (batch_size, num_heads, seq_len_q, d_k)

@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 
-from PositionwiseFeedForward import PositionwiseFeedForward
 from MultiHeadAttention import MultiHeadAttention
+from PositionwiseFeedForward import PositionwiseFeedForward
+from SublayerConnection import SublayerConnection
 
 class DecoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
@@ -26,15 +27,10 @@ class DecoderLayer(nn.Module):
         # 3. 前馈网络
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
         
-        # 4. 层归一化
-        self.norm1 = nn.LayerNorm(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.norm3 = nn.LayerNorm(d_model)
-        
-        # 5. Dropout层
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-        self.dropout3 = nn.Dropout(dropout)
+        # 4. 层归一化（LayerNorm） + Dropout层
+        self.sublayer1 = SublayerConnection(d_model, dropout)
+        self.sublayer2 = SublayerConnection(d_model, dropout)
+        self.sublayer3 = SublayerConnection(d_model, dropout)
     
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
@@ -52,25 +48,15 @@ class DecoderLayer(nn.Module):
         # ----------------- 步骤1：带掩码的自注意力 -----------------
         # 输入x的shape: (batch_size, tgt_seq_len, d_model)
         attn_output = self.self_attn(x, x, x, tgt_mask)  # 自注意力计算
-        attn_output = self.dropout1(attn_output)          # Dropout
-        x = x + attn_output                               # 残差连接
-        x = self.norm1(x)                                 # 层归一化，shape不变
+        x = self.sublayer1(x, lambda x: self.self_attn(x, x, x, tgt_mask))
         
         # ----------------- 步骤2：交叉注意力（处理编码器输出） -----------------
         # enc_output的shape: (batch_size, src_seq_len, d_model)
         # 交叉注意力：query来自解码器，key和value来自编码器
-        cross_attn_output = self.cross_attn(
-            x, enc_output, enc_output, src_mask           # query, key, value, mask
-        )
-        cross_attn_output = self.dropout2(cross_attn_output)  # Dropout
-        x = x + cross_attn_output                         # 残差连接
-        x = self.norm2(x)                                 # 层归一化，shape不变
+        x = self.sublayer2(x, lambda x: self.cross_attn(x, enc_output, enc_output, src_mask))
         
         # ----------------- 步骤3：前馈网络 -----------------
-        ff_output = self.ffn(x)                           # 前馈网络
-        ff_output = self.dropout3(ff_output)              # Dropout
-        x = x + ff_output                                 # 残差连接
-        x = self.norm3(x)                                 # 层归一化，shape不变
+        x = self.sublayer3(x, self.ffn)
         
         return x  # 输出shape: (batch_size, tgt_seq_len, d_model)
 

@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 
-from PositionwiseFeedForward import PositionwiseFeedForward
 from MultiHeadAttention import MultiHeadAttention
+from PositionwiseFeedForward import PositionwiseFeedForward
+from SublayerConnection import SublayerConnection
 
 class EncoderLayer(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
@@ -23,13 +24,9 @@ class EncoderLayer(nn.Module):
         # 2. 前馈网络：两个线性层，中间用ReLU激活
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
         
-        # 3. 层归一化（LayerNorm）
-        self.norm1 = nn.LayerNorm(d_model)  # 自注意力后的归一化
-        self.norm2 = nn.LayerNorm(d_model)  # 前馈后的归一化
-        
-        # 4. Dropout层
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
+        # 3. 层归一化（LayerNorm） + Dropout层
+        self.sublayer1 = SublayerConnection(d_model, dropout)
+        self.sublayer2 = SublayerConnection(d_model, dropout)
     
     def forward(self, x, mask=None):
         """
@@ -44,16 +41,10 @@ class EncoderLayer(nn.Module):
         """
         # ----------------- 步骤1：多头自注意力 -----------------
         # 输入x的shape: (batch_size, seq_len, d_model)
-        attn_output = self.self_attn(x, x, x, mask)  # 自注意力计算，输出shape同输入
-        attn_output = self.dropout1(attn_output)      # 应用Dropout
-        x = x + attn_output                           # 残差连接，shape不变
-        x = self.norm1(x)                             # 层归一化，shape不变
+        x = self.sublayer1(x, lambda x: self.self_attn(x, x, x, mask))
         
         # ----------------- 步骤2：前馈网络 -----------------
-        ff_output = self.ffn(x)          # 前馈网络，输出shape: (batch_size, seq_len, d_model)
-        ff_output = self.dropout2(ff_output)  # 应用Dropout
-        x = x + ff_output                # 残差连接，shape不变
-        x = self.norm2(x)                # 层归一化，shape不变
+        x = self.sublayer2(x, self.ffn)
         
         return x  # 最终输出shape: (batch_size, seq_len, d_model)
 
