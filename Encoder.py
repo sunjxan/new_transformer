@@ -21,7 +21,7 @@ class EncoderLayer(nn.Module):
         # 1. 多头自注意力层
         self.self_attn = MultiHeadAttention(d_model, num_heads)
         
-        # 2. 前馈网络：两个线性层，中间用ReLU激活
+        # 2. 前馈网络
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
         
         # 3. 层归一化（LayerNorm） + Dropout层

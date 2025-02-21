@@ -166,3 +166,21 @@ class Transformer(nn.Module):
         output = self.generator(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
         
         return output
+    
+    def init_parameters(self, init_type='xavier'):
+        """
+        初始化模型参数
+        Args:
+            init_type (str): 初始化类型，可选 'xavier'（默认）或 'kaiming'
+        """
+        for name, param in self.named_parameters():
+            if param.dim() > 1:  # 仅初始化矩阵权重，忽略偏置和LayerNorm参数
+                if init_type == 'xavier':
+                    nn.init.xavier_uniform_(param)
+                elif init_type == 'kaiming':
+                    nn.init.kaiming_uniform_(param, mode='fan_in', nonlinearity='relu')
+                else:
+                    raise ValueError(f"不支持的初始化类型: {init_type}")
+            elif 'bias' in name:  # 偏置初始化为零
+                nn.init.constant_(param, 0)
+            # LayerNorm参数保持默认初始化（gamma=1, beta=0）

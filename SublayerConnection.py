@@ -4,7 +4,8 @@ import torch.nn as nn
 class SublayerConnection(nn.Module):
     """
     残差连接与层归一化（对应Transformer中的Add & Norm操作）
-    结构：x -> Sublayer -> Dropout -> Add -> LayerNorm
+    Pre-LN 结构：x -> LayerNorm -> Sublayer -> Dropout -> Add
+    Post-LN 结构：x -> Sublayer -> Dropout -> Add -> LayerNorm
     输入输出形状保持不变：(batch_size, seq_len, d_model)
     """
     def __init__(self, d_model, dropout=0.1, norm_first=True):

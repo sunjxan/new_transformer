@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class PositionwiseFeedForward(nn.Module):
-    def __init__(self, d_model, d_ff, dropout=0.1):
+    def __init__(self, d_model, d_ff, dropout=0.1, activation='relu'):
         """
         Transformer的前馈神经网络（FFN）模块。
         
@@ -16,8 +16,8 @@ class PositionwiseFeedForward(nn.Module):
         self.linear1 = nn.Linear(d_model, d_ff)
         # 第二个线性层：将中间层从d_ff恢复回d_model维度
         self.linear2 = nn.Linear(d_ff, d_model)
-        # ReLU激活函数
-        self.relu = nn.ReLU()
+        # 激活函数
+        self.activation = nn.ReLU() if activation == 'relu' else nn.GELU()
         # Dropout层，用于防止过拟合
         self.dropout = nn.Dropout(dropout)
     
@@ -37,9 +37,9 @@ class PositionwiseFeedForward(nn.Module):
         x = self.linear1(x)
         # 此时x的shape: (batch_size, seq_len, d_ff)
         
-        # 第二步：应用ReLU激活函数
-        x = self.relu(x)
-        # ReLU不改变shape，仍为(batch_size, seq_len, d_ff)
+        # 第二步：应用激活函数
+        x = self.activation(x)
+        # 激活函数不改变shape，仍为(batch_size, seq_len, d_ff)
         
         # 第三步：应用Dropout
         x = self.dropout(x)
