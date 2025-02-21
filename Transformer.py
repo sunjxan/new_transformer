@@ -1,9 +1,101 @@
+import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from PositionalEncoding import PositionalEncoding
 from Encoder import Encoder
 from Decoder import Decoder
+
+class PositionalEncoding(nn.Module):
+    def __init__(self, d_model, max_len=5000, dropout=0.1):
+        """
+        位置编码（Positional Encoding）模块。
+        
+        Args:
+            d_model (int): 输入的特征维度（即词嵌入的维度）。
+            max_len (int): 支持的最大序列长度（默认为5000）。
+            dropout (float): Dropout概率（默认为0.1）。
+        """
+        super().__init__()
+        self.dropout = nn.Dropout(p=dropout)  # Dropout层
+
+        # 初始化位置编码矩阵，shape: (max_len, d_model)
+        pe = torch.zeros(max_len, d_model)
+        
+        # 生成位置索引，shape: (max_len, 1)
+        position = torch.arange(0, max_len).unsqueeze(1)
+        
+        # 计算除数项，用于生成正弦和余弦的波长
+        # div_term shape: (d_model // 2, )
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * -(math.log(10000.0) / d_model)
+        )
+        
+        # 填充位置编码矩阵的偶数列（正弦函数）
+        pe[:, 0::2] = torch.sin(position * div_term)  # 0::2表示从0开始每隔一列取一列
+        
+        # 填充位置编码矩阵的奇数列（余弦函数）
+        pe[:, 1::2] = torch.cos(position * div_term)  # 1::2表示从1开始每隔一列取一列
+        
+        # 扩展维度，使pe的shape变为 (1, max_len, d_model)，便于后续与输入相加
+        pe = pe.unsqueeze(0)
+        
+        # 将位置编码矩阵注册为缓冲区（不参与梯度更新）
+        self.register_buffer("pe", pe)
+
+    def forward(self, x):
+        """
+        前向传播函数。
+        
+        Args:
+            x (torch.Tensor): 输入序列，shape: (batch_size, seq_len, d_model)
+        
+        Returns:
+            torch.Tensor: 添加位置编码后的序列，shape: (batch_size, seq_len, d_model)
+        """
+        # 从预计算的位置编码矩阵中截取与输入序列长度匹配的部分
+        # self.pe[:, :x.size(1)] 的shape: (1, seq_len, d_model)
+        # 通过广播机制，与输入x的shape (batch_size, seq_len, d_model) 相加
+        x = x + self.pe[:, :x.size(1)].requires_grad_(False)
+        
+        # 应用Dropout
+        x = self.dropout(x)
+        return x
+
+class Generator(nn.Module):
+    def __init__(self, d_model, vocab_size):
+        """
+        Transformer的最终输出生成器，将Decoder的输出映射到目标词汇表空间。
+        
+        Args:
+            d_model (int): Decoder输出的特征维度。
+            vocab_size (int): 目标词汇表的大小。
+        """
+        super().__init__()
+        # 线性投影层：将Decoder输出的d_model维度映射到词汇表维度
+        # 输入shape: (batch_size, seq_len, d_model)
+        # 输出shape: (batch_size, seq_len, vocab_size)
+        self.proj = nn.Linear(d_model, vocab_size)
+
+    def forward(self, decoder_output):
+        """
+        前向传播函数。
+        
+        Args:
+            decoder_output (torch.Tensor): 
+                Decoder的输出，shape: (batch_size, seq_len, d_model)
+        
+        Returns:
+            torch.Tensor: 词汇表logits（未归一化的概率分数），shape: (batch_size, seq_len, vocab_size)
+        """
+        # 1. 线性投影
+        # decoder_output shape: (batch_size, seq_len, d_model)
+        logits = self.proj(decoder_output)  # shape: (batch_size, seq_len, vocab_size)
+
+        # 2. 可选：应用Softmax（实际训练中通常直接使用logits计算交叉熵损失）
+        # probs = F.softmax(logits, dim=-1)  # shape: (batch_size, seq_len, vocab_size)
+        
+        return logits  # 直接返回logits（更高效，避免重复计算Softmax）
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_size, tgt_vocab_size, d_model, num_heads, num_encoder_layers, num_decoder_layers, d_ff, max_seq_len=512, dropout=0.1):
@@ -35,7 +127,7 @@ class Transformer(nn.Module):
         self.decoder = Decoder(num_decoder_layers, d_model, num_heads, d_ff, dropout, max_seq_len)
         
         # 4. 最终线性层
-        self.output_layer = nn.Linear(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
+        self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
 
     def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None):
         """
@@ -64,6 +156,6 @@ class Transformer(nn.Module):
         )  # (batch_size, tgt_seq_len, d_model)
         
         # 4. 输出层映射到词表
-        output = self.output_layer(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
+        output = self.generator(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
         
         return output
