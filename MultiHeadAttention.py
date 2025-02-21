@@ -90,10 +90,15 @@ class MultiHeadAttention(nn.Module):
         """
         batch_size = Q.size(0)
         
-        # 线性变换 + 分割多头 + 转置维度
-        Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)  # (batch_size, num_heads, seq_len_q, d_k)
-        K = self.W_k(K).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)  # (batch_size, num_heads, seq_len_kv, d_k)
-        V = self.W_v(V).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)  # (batch_size, num_heads, seq_len_kv, d_k)
+        # 线性变换 + 分割多头
+        Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_q, d_k)
+        K = self.W_k(K).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
+        V = self.W_v(V).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
+
+        # 转置维度以便矩阵计算 (batch_size, num_heads, seq_len, d_k)
+        Q = Q.transpose(1, 2).contiguous()
+        K = K.transpose(1, 2).contiguous()
+        V = V.transpose(1, 2).contiguous()
         
         # 应用掩码（如果存在）
         if mask is not None:
