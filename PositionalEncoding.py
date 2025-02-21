@@ -19,12 +19,12 @@ class PositionalEncoding(nn.Module):
         pe = torch.zeros(max_len, d_model)
         
         # 生成位置索引，shape: (max_len, 1)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
+        position = torch.arange(0, max_len).unsqueeze(1)
         
         # 计算除数项，用于生成正弦和余弦的波长
         # div_term shape: (d_model // 2, )
         div_term = torch.exp(
-            torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model)
+            torch.arange(0, d_model, 2) * -(math.log(10000.0) / d_model)
         )
         
         # 填充位置编码矩阵的偶数列（正弦函数）
@@ -50,9 +50,9 @@ class PositionalEncoding(nn.Module):
             torch.Tensor: 添加位置编码后的序列，shape: (batch_size, seq_len, d_model)
         """
         # 从预计算的位置编码矩阵中截取与输入序列长度匹配的部分
-        # self.pe[:, :x.size(1), :] 的shape: (1, seq_len, d_model)
+        # self.pe[:, :x.size(1)] 的shape: (1, seq_len, d_model)
         # 通过广播机制，与输入x的shape (batch_size, seq_len, d_model) 相加
-        x = x + self.pe[:, :x.size(1), :]
+        x = x + self.pe[:, :x.size(1)].requires_grad_(False)
         
         # 应用Dropout
         x = self.dropout(x)

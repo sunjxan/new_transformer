@@ -60,9 +60,7 @@ class Transformer(nn.Module):
         
         # 3. 解码器处理
         decoder_output = self.decoder(
-            tgt_emb, memory, 
-            tgt_mask=tgt_mask, 
-            memory_mask=memory_mask  # 通常是 src_mask 的变体
+            tgt_emb, memory, tgt_mask, memory_mask  # memory_mask 通常是 src_mask 的变体
         )  # (batch_size, tgt_seq_len, d_model)
         
         # 4. 输出层映射到词表

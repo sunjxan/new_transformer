@@ -77,7 +77,7 @@ class Encoder(nn.Module):
         ])
         
         # LayerNorm
-        self.layer_norm = nn.LayerNorm(d_model)
+        self.norm = nn.LayerNorm(d_model)
 
     def forward(self, x, mask=None):
         """
@@ -94,6 +94,6 @@ class Encoder(nn.Module):
             x = layer(x, mask)  # 每层输出保持 (batch_size, seq_len, d_model)
         
         # 2. 最终 LayerNorm（可选，部分实现在每层内部已包含）
-        output = self.layer_norm(x)
+        x = self.norm(x)
         
-        return output
+        return x
