@@ -5,7 +5,7 @@ import torch.nn as nn
 from Encoder import Encoder
 from Decoder import Decoder
 
-class Embedding(nn.Module):
+class Embeddings(nn.Module):
     def __init__(self, vocab_size, d_model):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, d_model)
@@ -123,8 +123,8 @@ class Transformer(nn.Module):
         self.d_model = d_model
         
         # 1. 词嵌入层
-        self.src_embed = Embedding(src_vocab_size, d_model)  # (src_vocab_size, d_model)
-        self.tgt_embed = Embedding(tgt_vocab_size, d_model)  # (tgt_vocab_size, d_model)
+        self.src_embed = Embeddings(src_vocab_size, d_model)  # (src_vocab_size, d_model)
+        self.tgt_embed = Embeddings(tgt_vocab_size, d_model)  # (tgt_vocab_size, d_model)
         
         # 2. 位置编码
         self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
@@ -144,7 +144,7 @@ class Transformer(nn.Module):
             tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
             src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
             tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
-            memory_mask (Tensor): Encoder 到 Decoder 的掩码 (可选)
+            memory_mask (Tensor): Encoder 到 Decoder 的掩码
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
         """
