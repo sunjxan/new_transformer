@@ -8,7 +8,7 @@ class PositionwiseFeedForward(nn.Module):
         
         Args:
             d_model (int): 输入和输出的特征维度（即词嵌入的维度）。
-            d_ff (int): 中间层的维度（通常比d_model大，如2048）。
+            d_ff (int): 中间层的维度（通常比d_model大）。
             dropout (float): Dropout概率，默认为0.1。
         """
         super().__init__()
