@@ -5,6 +5,20 @@ import torch.nn as nn
 from Encoder import Encoder
 from Decoder import Decoder
 
+class Embedding(nn.Module):
+    def __init__(self, vocab_size, d_model):
+        super().__init__()
+        self.embedding = nn.Embedding(vocab_size, d_model)
+        self.d_model = d_model
+    
+    def forward(self, x):
+        '''
+        词嵌入后缩放
+        数值稳定性：在后续的注意力机制中，点积操作 Q·K^T 的结果会除以 sqrt(d_k)（其中 d_k = d_model）。在嵌入阶段提前乘以 sqrt(d_model)，可以保持数值量级的一致性。
+        梯度控制：防止词嵌入的初始值过小，导致梯度消失。
+        '''
+        return self.embedding(x) * math.sqrt(self.d_model)
+
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, max_len=5000, dropout=0.1):
         """
@@ -115,8 +129,8 @@ class Transformer(nn.Module):
         self.d_model = d_model
         
         # 1. 词嵌入层
-        self.src_embed = nn.Embedding(src_vocab_size, d_model)  # (src_vocab_size, d_model)
-        self.tgt_embed = nn.Embedding(tgt_vocab_size, d_model)  # (tgt_vocab_size, d_model)
+        self.src_embed = Embedding(src_vocab_size, d_model)  # (src_vocab_size, d_model)
+        self.tgt_embed = Embedding(tgt_vocab_size, d_model)  # (tgt_vocab_size, d_model)
         
         # 2. 位置编码
         self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
@@ -141,8 +155,8 @@ class Transformer(nn.Module):
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
         """
         # 1. 词嵌入 + 位置编码
-        src_emb = self.src_embed(src) * torch.sqrt(torch.tensor(self.d_model))  # (batch_size, src_seq_len, d_model)
-        tgt_emb = self.tgt_embed(tgt) * torch.sqrt(torch.tensor(self.d_model))  # (batch_size, tgt_seq_len, d_model)
+        src_emb = self.src_embed(src)  # (batch_size, src_seq_len, d_model)
+        tgt_emb = self.tgt_embed(tgt)  # (batch_size, tgt_seq_len, d_model)
         src_emb = self.positional_encoding(src_emb)  # (batch_size, src_seq_len, d_model)
         tgt_emb = self.positional_encoding(tgt_emb)  # (batch_size, tgt_seq_len, d_model)
         
