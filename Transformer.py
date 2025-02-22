@@ -136,7 +136,7 @@ class Transformer(nn.Module):
         # 4. 最终线性层
         self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
 
-    def forward(self, src, tgt, src_mask=None, tgt_mask=None, memory_mask=None):
+    def forward(self, src, tgt, src_mask=None, tgt_mask=None):
         """
         前向传播
         Args:
@@ -144,7 +144,6 @@ class Transformer(nn.Module):
             tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
             src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
             tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
-            memory_mask (Tensor): Encoder 到 Decoder 的掩码
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
         """
@@ -158,9 +157,7 @@ class Transformer(nn.Module):
         memory = self.encoder(src_emb, src_mask)  # (batch_size, src_seq_len, d_model)
         
         # 3. 解码器处理
-        decoder_output = self.decoder(
-            tgt_emb, memory, tgt_mask, memory_mask  # memory_mask 通常是 src_mask 的变体
-        )  # (batch_size, tgt_seq_len, d_model)
+        decoder_output = self.decoder(tgt_emb, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
         
         # 4. 输出层映射到词表
         output = self.generator(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
@@ -184,3 +181,13 @@ class Transformer(nn.Module):
             elif 'bias' in name:  # 偏置初始化为零
                 nn.init.zeros_(param)
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）
+
+    @staticmethod
+    def generate_padding_mask(seq, pad_idx):
+        """生成填充掩码（pad位置为False）"""
+        return (seq != pad_idx).unsqueeze(-2)  # (batch_size, 1, seq_len)
+
+    @staticmethod
+    def generate_causal_mask(seq_len):
+        """生成因果掩码（下三角为True）"""
+        return torch.tril(torch.ones(seq_len, seq_len)) == 1 # (seq_len, seq_len)
