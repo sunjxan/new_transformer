@@ -182,5 +182,5 @@ class Transformer(nn.Module):
                 else:
                     raise ValueError(f"不支持的初始化类型: {init_type}")
             elif 'bias' in name:  # 偏置初始化为零
-                nn.init.constant_(param, 0)
+                nn.init.zeros_(param)
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）

@@ -74,7 +74,7 @@ class Encoder(nn.Module):
         前向传播
         Args:
             x (Tensor): 输入序列 (batch_size, seq_len, d_model)
-            mask (Tensor): 掩码 (batch_size, seq_len) 或 (batch_size, seq_len, seq_len)
+            mask (Tensor): 掩码 (batch_size, seq_len, seq_len)
         Returns:
             output (Tensor): 编码后的序列 (batch_size, seq_len, d_model)
         """
