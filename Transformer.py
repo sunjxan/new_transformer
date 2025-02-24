@@ -183,7 +183,7 @@ class Transformer(nn.Module):
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）
 
     @staticmethod
-    def generate_padding_mask(seq, pad_idx):
+    def generate_padding_mask(seq, pad_idx=0):
         """生成填充掩码（pad位置为False）"""
         return (seq != pad_idx).unsqueeze(-2)  # (batch_size, 1, seq_len)
 
