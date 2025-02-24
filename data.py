@@ -1,7 +1,9 @@
+import math
 import torch
-from collections import defaultdict
-
 import jieba
+
+from collections import defaultdict
+from torch.utils.data import Dataset, DataLoader
 
 # 原始数据
 sentences = [
@@ -17,7 +19,7 @@ SPECIAL_TOKENS = ['<pad>', '<sos>', '<eos>', '<unk>']
 # 中英文处理函数
 def chinese_tokenizer(text):
     """中文按字符分割"""
-    return list(jieba.cut(text))
+    return list(jieba.cut(text.strip()))
 
 def english_tokenizer(text):
     """英文按空格分割并转小写"""
@@ -26,66 +28,61 @@ def english_tokenizer(text):
 # 构建词汇表
 def build_vocab(sentences, tokenizer):
     """构建词汇表"""
-    vocab = defaultdict(int)
+    counter = defaultdict(int)
     for sent in sentences:
         for token in tokenizer(sent):
-            vocab[token] += 1
+            counter[token] += 1
+    vocab = {token: i+len(SPECIAL_TOKENS) for i, token in enumerate(sorted(counter))}
+    # 添加特殊标记
+    for i, token in enumerate(SPECIAL_TOKENS):
+        vocab[token] = i
     return vocab
 
-# 生成处理后的数据
-def process_data(sentences, chinese_seq_len, english_seq_len):
+class CorpusDataset(Dataset):
+    def __init__(self, sentences):
+        super().__init__()
+        self.sentences = sentences
+
+    def __len__(self):
+        return len(self.sentences)
+
+    def __getitem__(self, index):
+        if index >= 0 and index < self.__len__():
+            return self.sentences[index]
+        return
+
+def collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_seq_len):
+    chinese_data = []
+    english_data = []
+
+    for chinese_sent, english_sent in batch:
+        # 处理中文数据（源语言不加特殊标记）
+        tokens = chinese_tokenizer(chinese_sent)
+        tokens = tokens[:chinese_seq_len]
+        tokens += ['<pad>'] * (chinese_seq_len - len(tokens))
+        chinese_data.append([chinese_vocab.get(t, chinese_vocab['<unk>']) for t in tokens])
+        # 处理英文数据（目标语言添加特殊标记）
+        tokens = ['<sos>'] + english_tokenizer(english_sent) + ['<eos>'] 
+        tokens = tokens[:english_seq_len]
+        tokens += ['<pad>'] * (english_seq_len - len(tokens))
+        english_data.append([english_vocab.get(t, english_vocab['<unk>']) for t in tokens])
+
+    return torch.LongTensor(chinese_data), torch.LongTensor(english_data)
+
+def create_dataloader(sentences, chinese_seq_len, english_seq_len, batch_size, shuffle=False, drop_last=False):
     # 分离中英文
     chinese_sents = [pair[0] for pair in sentences]
     english_sents = [pair[1] for pair in sentences]
 
-    # 构建词汇表
-    zh_vocab = {token: i+len(SPECIAL_TOKENS) 
-                for i, token in enumerate(sorted(build_vocab(chinese_sents, chinese_tokenizer)))}
-    en_vocab = {token: i+len(SPECIAL_TOKENS) 
-                for i, token in enumerate(sorted(build_vocab(english_sents, english_tokenizer)))}
+    # 生成词汇表
+    chinese_vocab = build_vocab(chinese_sents, chinese_tokenizer)
+    english_vocab = build_vocab(english_sents, english_tokenizer)
 
-    # 添加特殊标记
-    for i, token in enumerate(SPECIAL_TOKENS):
-        zh_vocab[token] = i
-        en_vocab[token] = i
-
-    # 处理中文数据
-    zh_data = []
-    for sent in chinese_sents:
-        tokens = chinese_tokenizer(sent)[:chinese_seq_len]
-        tokens = tokens + ['<pad>']*(chinese_seq_len - len(tokens))
-        zh_data.append([zh_vocab.get(t, zh_vocab['<unk>']) for t in tokens])
-
-    # 处理英文数据
-    en_data = []
-    for sent in english_sents:
-        tokens = english_tokenizer(sent)[:english_seq_len]
-        tokens = tokens + ['<pad>']*(english_seq_len - len(tokens))
-        en_data.append([en_vocab.get(t, en_vocab['<unk>']) for t in tokens])
-
-    return (
-        torch.LongTensor(zh_data),
-        torch.LongTensor(en_data),
-        zh_vocab,
-        en_vocab
-    )
-
-# 执行数据处理
-src_tensor, tgt_tensor, zh_vocab, en_vocab = process_data(sentences, 3, 5)
-
-# 打印结果
-print("中文词汇表（部分）：", dict(list(zh_vocab.items())[:10]))
-print("\n英文词汇表（部分）：", dict(list(en_vocab.items())[:10]))
-print("\n源语言张量（shape {}）：\n{}".format(src_tensor.shape, src_tensor))
-print("\n目标语言张量（shape {}）：\n{}".format(tgt_tensor.shape, tgt_tensor))
-
-# 生成掩码
-def generate_mask(tensor, pad_idx=0):
-    """生成padding掩码"""
-    return (tensor != pad_idx).unsqueeze(1).unsqueeze(2)
-
-src_mask = generate_mask(src_tensor)
-tgt_mask = generate_mask(tgt_tensor)
-
-print("\n源语言掩码（shape {}）：\n{}".format(src_mask.shape, src_mask.squeeze()))
-print("\n目标语言掩码（shape {}）：\n{}".format(tgt_mask.shape, tgt_mask.squeeze()))
+    dataset = CorpusDataset(sentences)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
+        collate_fn=lambda batch: collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_seq_len))
+    if drop_last:
+        size = math.floor(len(dataset) / batch_size)
+    else:
+        size = math.ceil(len(dataset) / batch_size)
+    return dataloader, size, chinese_vocab, english_vocab
