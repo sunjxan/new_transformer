@@ -183,7 +183,7 @@ class Transformer(nn.Module):
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）
 
     @staticmethod
-    def generate_padding_mask(seq, pad_idx=0):
+    def generate_src_mask(seq, pad_idx=0):
         """生成填充掩码（pad位置为False）"""
         return (seq != pad_idx).unsqueeze(-2)  # (batch_size, 1, seq_len)
 
@@ -191,3 +191,8 @@ class Transformer(nn.Module):
     def generate_causal_mask(seq_len):
         """生成因果掩码（下三角为True）"""
         return torch.tril(torch.ones(seq_len, seq_len)) == 1 # (seq_len, seq_len)
+
+    @staticmethod
+    def generate_tgt_mask(seq, pad_idx=0):
+        '''结合填充掩码和因果掩码得到目标序列掩码'''
+        return Transformer.generate_src_mask(seq, pad_idx) & Transformer.generate_causal_mask(seq.size(-1))

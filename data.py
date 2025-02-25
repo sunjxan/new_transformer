@@ -38,7 +38,7 @@ def build_vocab(sentences, tokenizer):
         vocab[token] = i
     return vocab
 
-class CorpusDataset(Dataset):
+class TranslationDataset(Dataset):
     def __init__(self, sentences):
         super().__init__()
         self.sentences = sentences
@@ -69,7 +69,7 @@ def collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_
 
     return torch.LongTensor(chinese_data), torch.LongTensor(english_data)
 
-def create_dataloader(sentences, chinese_seq_len, english_seq_len, batch_size, shuffle=False, drop_last=False):
+def create_dataloader(chinese_seq_len, english_seq_len, batch_size, shuffle=False, drop_last=False):
     # 分离中英文
     chinese_sents = [pair[0] for pair in sentences]
     english_sents = [pair[1] for pair in sentences]
@@ -78,11 +78,11 @@ def create_dataloader(sentences, chinese_seq_len, english_seq_len, batch_size, s
     chinese_vocab = build_vocab(chinese_sents, chinese_tokenizer)
     english_vocab = build_vocab(english_sents, english_tokenizer)
 
-    dataset = CorpusDataset(sentences)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
+    dataset = TranslationDataset(sentences)
+    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
         collate_fn=lambda batch: collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_seq_len))
     if drop_last:
-        size = math.floor(len(dataset) / batch_size)
+        loader_size = math.floor(len(dataset) / batch_size)
     else:
-        size = math.ceil(len(dataset) / batch_size)
-    return dataloader, size, chinese_vocab, english_vocab
+        loader_size = math.ceil(len(dataset) / batch_size)
+    return loader, loader_size, chinese_vocab, english_vocab
