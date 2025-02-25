@@ -1,14 +1,12 @@
 import torch
 import torch.nn as nn
+import torch.optim as optim
 
-from data import create_dataloader
+from data import get_vocabs, create_dataloader
 from Transformer import Transformer
 
-train_loader, train_loader_size, src_vocab, tgt_vocab = create_dataloader(
-    chinese_seq_len=8,
-    english_seq_len=10,
-    batch_size=3
-)
+
+src_vocab, tgt_vocab = get_vocabs()
 
 # 初始化模型
 model = Transformer(
@@ -26,24 +24,77 @@ model = Transformer(
 # 初始化参数
 model.init_parameters(init_type='xavier')
 
-for src, tgt in train_loader:
-    src_mask = Transformer.generate_src_mask(src)
-    tgt_mask = Transformer.generate_tgt_mask(tgt[:, :-1])
-    output = model(
-        src=src,
-        tgt=tgt[:, :-1],  # 解码器输入去尾
-        src_mask=src_mask,
-        tgt_mask=tgt_mask
-    )
-
 # 定义损失函数和优化器
-criterion = nn.CrossEntropyLoss(ignore_index=0)  # 忽略padding位置的损失
-optimizer = torch.optim.AdamW(
+criterion = nn.CrossEntropyLoss(ignore_index=tgt_vocab['<pad>'])  # 忽略padding位置的损失
+optimizer = optim.AdamW(
     model.parameters(),
     lr=1e-4,
     betas=(0.9, 0.98),
+    eps=1e-9,
     weight_decay=0.01
 )
 
 # 定义学习率调度器
-scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+
+train_loader, train_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10, 3,
+    shuffle=True, drop_last=True)
+
+model.train()
+
+for src, tgt in train_loader:
+    # 梯度清零
+    optimizer.zero_grad()
+
+    # 生成掩码
+    src_mask = Transformer.generate_src_mask(src, pad_idx=src_vocab['<pad>'])
+    tgt_mask = Transformer.generate_tgt_mask(tgt, pad_idx=tgt_vocab['<pad>'])
+
+    # 前向传播
+    output = model(
+        src=src,
+        tgt=tgt[:, :-1],  # 解码器输入去尾
+        src_mask=src_mask,
+        tgt_mask=tgt_mask[:, :-1, :-1]
+    )
+    
+    # 计算损失
+    loss = criterion(
+        output.contiguous().view(-1, output.size(-1)),
+        tgt[:, 1:].contiguous().view(-1)  # 目标去头
+    )
+    
+    # 反向传播
+    loss.backward()
+    
+    # 梯度裁剪（防止梯度爆炸）
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+    
+    # 参数更新
+    optimizer.step()
+
+scheduler.step()
+
+val_loader, val_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10, 3)
+
+model.eval()
+
+with torch.no_grad():
+    for src, tgt in val_loader:
+        # 生成掩码
+        src_mask = Transformer.generate_src_mask(src, pad_idx=src_vocab['<pad>'])
+        tgt_mask = Transformer.generate_tgt_mask(tgt, pad_idx=tgt_vocab['<pad>'])
+
+        # 前向传播
+        output = model(
+            src=src,
+            tgt=tgt[:, :-1],  # 解码器输入去尾
+            src_mask=src_mask,
+            tgt_mask=tgt_mask[:, :-1, :-1]
+        )
+        
+        # 计算损失
+        loss = criterion(
+            output.contiguous().view(-1, output.size(-1)),
+            tgt[:, 1:].contiguous().view(-1)  # 目标去头
+        )
