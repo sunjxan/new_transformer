@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from data import get_vocabs, create_dataloader
+from data import get_vocabs, create_dataloader, chinese_tokenizer
 from Transformer import Transformer
 
 
@@ -98,3 +98,33 @@ with torch.no_grad():
             output.contiguous().view(-1, output.size(-1)),
             tgt[:, 1:].contiguous().view(-1)  # 目标去头
         )
+
+# def greedy_decode(model, src, src_vocab, tgt_vocab, max_len=20):
+
+model.eval()
+
+src_sent = '我爱学习人工智能'
+tokens = chinese_tokenizer(src_sent)
+src = [src_vocab.get(t, src_vocab['<unk>']) for t in tokens]
+src = torch.LongTensor(src).unsqueeze(0)
+
+ys = torch.LongTensor([tgt_vocab["<sos>"]]).unsqueeze(0)
+
+with torch.no_grad():
+    memory = model.encode(src)
+    for _ in range(20 - 1):
+        decoder_output = model.decode(memory, ys)
+        output = model.generator(decoder_output[:, -1])
+        probs = torch.softmax(output, dim=-1)
+        next_token = torch.argmax(probs, dim=-1).unsqueeze(0)
+        ys = torch.cat([ys, next_token], dim=-1)
+        if next_token == tgt_vocab['<eos>']:
+            break
+
+# 预测结果解码示例
+def decode_sequence(ids, vocab):
+    idx2token = {v: k for k, v in vocab.items()}
+    return ' '.join([idx2token.get(i, '<unk>')
+                     for i in ids if i not in [vocab['<pad>'], vocab['<sos>'], vocab['<eos>']]])
+
+print(decode_sequence(ys[0].tolist(), tgt_vocab))

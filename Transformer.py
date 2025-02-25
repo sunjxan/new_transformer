@@ -136,6 +136,48 @@ class Transformer(nn.Module):
         # 4. 最终线性层
         self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
 
+    def encode(self, src, src_mask=None):
+        """
+        编码
+        Args:
+            src (Tensor): 源序列 (batch_size, src_seq_len)
+            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
+        Returns:
+            memory (Tensor): 编码结果 (batch_size, src_seq_len, d_model)
+        """
+        # 1. 词嵌入
+        src_emb = self.src_embed(src)  # (batch_size, src_seq_len, d_model)
+
+        # 2. 位置编码
+        src_emb = self.positional_encoding(src_emb)  # (batch_size, src_seq_len, d_model)
+        
+        # 3. 编码器处理
+        memory = self.encoder(src_emb, src_mask)  # (batch_size, src_seq_len, d_model)
+        
+        return memory
+
+    def decode(self, memory, tgt, src_mask=None, tgt_mask=None):
+        """
+        解码
+        Args:
+            memory (Tensor): 编码结果 (batch_size, src_seq_len, d_model)
+            tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
+            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
+            tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
+        Returns:
+            decoder_output (Tensor): 解码结果 (batch_size, tgt_seq_len, d_model)
+        """
+        # 1. 词嵌入
+        tgt_emb = self.tgt_embed(tgt)  # (batch_size, tgt_seq_len, d_model)
+
+        # 2. 位置编码
+        tgt_emb = self.positional_encoding(tgt_emb)  # (batch_size, tgt_seq_len, d_model)
+
+        # 3. 解码器处理
+        decoder_output = self.decoder(tgt_emb, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
+
+        return decoder_output
+
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
         """
         前向传播
@@ -147,19 +189,13 @@ class Transformer(nn.Module):
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
         """
-        # 1. 词嵌入 + 位置编码
-        src_emb = self.src_embed(src)  # (batch_size, src_seq_len, d_model)
-        tgt_emb = self.tgt_embed(tgt)  # (batch_size, tgt_seq_len, d_model)
-        src_emb = self.positional_encoding(src_emb)  # (batch_size, src_seq_len, d_model)
-        tgt_emb = self.positional_encoding(tgt_emb)  # (batch_size, tgt_seq_len, d_model)
+        # 1. 编码
+        memory = self.encode(src, src_mask)  # (batch_size, src_seq_len, d_model)
+
+        # 2. 解码
+        decoder_output = self.decode(memory, tgt, src_mask, tgt_mask)  # (batch_size, tgt_seq_len, d_model)
         
-        # 2. 编码器处理
-        memory = self.encoder(src_emb, src_mask)  # (batch_size, src_seq_len, d_model)
-        
-        # 3. 解码器处理
-        decoder_output = self.decoder(tgt_emb, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
-        
-        # 4. 输出层映射到词表
+        # 3. 输出层映射到词表
         output = self.generator(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
         
         return output

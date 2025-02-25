@@ -4,6 +4,7 @@ import jieba
 
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader
+from torch.nn.utils.rnn import pad_sequence
 
 # 原始数据
 sentences = [
@@ -69,16 +70,16 @@ def collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_
     for chinese_sent, english_sent in batch:
         # 处理中文数据（源语言不加特殊标记）
         tokens = chinese_tokenizer(chinese_sent)
-        tokens = tokens[:chinese_seq_len]
-        tokens += ['<pad>'] * (chinese_seq_len - len(tokens))
-        chinese_data.append([chinese_vocab.get(t, chinese_vocab['<unk>']) for t in tokens])
+        tokens = [chinese_vocab.get(t, chinese_vocab['<unk>']) for t in tokens[:chinese_seq_len]]
+        chinese_data.append(torch.LongTensor(tokens))
         # 处理英文数据（目标语言添加特殊标记）
         tokens = ['<sos>'] + english_tokenizer(english_sent) + ['<eos>'] 
-        tokens = tokens[:english_seq_len]
-        tokens += ['<pad>'] * (english_seq_len - len(tokens))
-        english_data.append([english_vocab.get(t, english_vocab['<unk>']) for t in tokens])
-
-    return torch.LongTensor(chinese_data), torch.LongTensor(english_data)
+        tokens = [english_vocab.get(t, english_vocab['<unk>']) for t in tokens[:english_seq_len]]
+        english_data.append(torch.LongTensor(tokens))
+    
+    chinese_data = pad_sequence(chinese_data, batch_first=True, padding_value=chinese_vocab['<pad>'])
+    english_data = pad_sequence(english_data, batch_first=True, padding_value=english_vocab['<pad>'])
+    return chinese_data, english_data
 
 def create_dataloader(chinese_vocab, english_vocab, chinese_seq_len, english_seq_len, batch_size, shuffle=False, drop_last=False):
     dataset = TranslationDataset(sentences)
