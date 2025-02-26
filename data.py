@@ -50,6 +50,12 @@ def get_vocabs():
 
     return chinese_vocab, english_vocab
 
+# 预测结果解码
+def decode_sequence(ids, vocab):
+    idx2token = {v: k for k, v in vocab.items()}
+    return ' '.join([idx2token.get(i, '<unk>')
+                     for i in ids if i not in [vocab['<pad>'], vocab['<sos>'], vocab['<eos>']]])
+
 class TranslationDataset(Dataset):
     def __init__(self, sentences):
         super().__init__()
