@@ -5,7 +5,6 @@ import torch.optim as optim
 from data import get_vocabs, create_dataloader, chinese_tokenizer
 from Transformer import Transformer
 
-
 src_vocab, tgt_vocab = get_vocabs()
 
 # 初始化模型
@@ -42,38 +41,39 @@ train_loader, train_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10,
 
 model.train()
 
-for src, tgt in train_loader:
-    # 梯度清零
-    optimizer.zero_grad()
+for _ in range(20):
+    for src, tgt in train_loader:
+        # 梯度清零
+        optimizer.zero_grad()
 
-    # 生成掩码
-    src_mask = Transformer.generate_src_mask(src, pad_idx=src_vocab['<pad>'])
-    tgt_mask = Transformer.generate_tgt_mask(tgt, pad_idx=tgt_vocab['<pad>'])
+        # 生成掩码
+        src_mask = Transformer.generate_src_mask(src, pad_idx=src_vocab['<pad>'])
+        tgt_mask = Transformer.generate_tgt_mask(tgt, pad_idx=tgt_vocab['<pad>'])
 
-    # 前向传播
-    output = model(
-        src=src,
-        tgt=tgt[:, :-1],  # 解码器输入去尾
-        src_mask=src_mask,
-        tgt_mask=tgt_mask[:, :-1, :-1]
-    )
-    
-    # 计算损失
-    loss = criterion(
-        output.contiguous().view(-1, output.size(-1)),
-        tgt[:, 1:].contiguous().view(-1)  # 目标去头
-    )
-    
-    # 反向传播
-    loss.backward()
-    
-    # 梯度裁剪（防止梯度爆炸）
-    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-    
-    # 参数更新
-    optimizer.step()
+        # 前向传播
+        output = model(
+            src=src,
+            tgt=tgt[:, :-1],  # 解码器输入去尾
+            src_mask=src_mask,
+            tgt_mask=tgt_mask[:, :-1, :-1]
+        )
+        
+        # 计算损失
+        loss = criterion(
+            output.contiguous().view(-1, output.size(-1)),
+            tgt[:, 1:].contiguous().view(-1)  # 目标去头
+        )
+        
+        # 反向传播
+        loss.backward()
+        
+        # 梯度裁剪（防止梯度爆炸）
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        
+        # 参数更新
+        optimizer.step()
 
-scheduler.step()
+    scheduler.step()
 
 val_loader, val_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10, 3)
 
@@ -99,32 +99,35 @@ with torch.no_grad():
             tgt[:, 1:].contiguous().view(-1)  # 目标去头
         )
 
-# def greedy_decode(model, src, src_vocab, tgt_vocab, max_len=20):
+def greedy_decode(model, src_sent, src_vocab, tgt_vocab, max_len=20):
+    model.eval()
 
-model.eval()
+    tokens = chinese_tokenizer(src_sent)
+    src = [src_vocab.get(t, src_vocab['<unk>']) for t in tokens]
+    src = torch.LongTensor(src).unsqueeze(0)
+    src_mask = Transformer.generate_src_mask(src, src_vocab['<pad>'])
+    ys = torch.LongTensor([tgt_vocab["<sos>"]]).unsqueeze(0)
 
-src_sent = '我爱学习人工智能'
-tokens = chinese_tokenizer(src_sent)
-src = [src_vocab.get(t, src_vocab['<unk>']) for t in tokens]
-src = torch.LongTensor(src).unsqueeze(0)
+    with torch.no_grad():
+        memory = model.encode(src)
+        for _ in range(max_len - 1):
+            tgt_mask = Transformer.generate_src_mask(ys)
+            decoder_output = model.decode(memory, ys, src_mask, tgt_mask)
+            output = model.generator(decoder_output[:, -1])
+            probs = torch.softmax(output, dim=-1)
+            next_token = torch.argmax(probs, dim=-1).unsqueeze(-1)
+            ys = torch.cat([ys, next_token], dim=-1)
+            if next_token == tgt_vocab['<eos>']:
+                break
 
-ys = torch.LongTensor([tgt_vocab["<sos>"]]).unsqueeze(0)
+    return ys[0].tolist()
 
-with torch.no_grad():
-    memory = model.encode(src)
-    for _ in range(20 - 1):
-        decoder_output = model.decode(memory, ys)
-        output = model.generator(decoder_output[:, -1])
-        probs = torch.softmax(output, dim=-1)
-        next_token = torch.argmax(probs, dim=-1).unsqueeze(0)
-        ys = torch.cat([ys, next_token], dim=-1)
-        if next_token == tgt_vocab['<eos>']:
-            break
-
-# 预测结果解码示例
+# 预测结果解码
 def decode_sequence(ids, vocab):
     idx2token = {v: k for k, v in vocab.items()}
     return ' '.join([idx2token.get(i, '<unk>')
                      for i in ids if i not in [vocab['<pad>'], vocab['<sos>'], vocab['<eos>']]])
 
-print(decode_sequence(ys[0].tolist(), tgt_vocab))
+src_sent = '神经网络爱学习深度学习'
+predictions = greedy_decode(model, src_sent, src_vocab, tgt_vocab)
+print(decode_sequence(predictions, tgt_vocab))
