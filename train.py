@@ -172,7 +172,8 @@ class Trainer:
         # 保存最佳模型
         if avg_loss < self.best_val_loss:
             self.best_val_loss = avg_loss
-            self.save_checkpoint(f'best_model.pth')
+            self.save_checkpoint('checkpoint_best.pth')
+            torch.save(model, 'best_model.pth')
         
         return avg_loss, epoch_time
 
@@ -263,7 +264,7 @@ if __name__ == '__main__':
         'epochs': 20,
         'save_dir': './checkpoints',
         'log_dir': './logs',
-        'checkpoint': './checkpoints/best_model.pth',  # 可以指定预训练权重路径
+        'checkpoint': './checkpoints/checkpoint_best.pth',  # 可以指定预训练权重路径
         'print_interval_steps': 10,
         'save_interval_epochs': 5,
         'src_pad': src_vocab['<pad>'],
