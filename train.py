@@ -61,7 +61,7 @@ class Trainer:
         """保存模型计算图到TensorBoard"""
         src, tgt = next(iter(self.train_loader))
         dummy_src = torch.randn(1, *src.shape[1:]).long().to(self.device)
-        dummy_tgt = torch.randn(1, *src.shape[1:]).long().to(self.device)
+        dummy_tgt = torch.randn(1, *tgt.shape[1:]).long().to(self.device)
         self.writer.add_graph(self.model, (dummy_src, dummy_tgt))
 
     def train_epoch(self, epoch):
@@ -74,8 +74,8 @@ class Trainer:
             iter_start_time = time.time()
             
             # 生成掩码
-            src_mask = Transformer.generate_src_mask(src)
-            tgt_mask = Transformer.generate_tgt_mask(tgt)
+            src_mask = model.generate_src_mask(src, self.config['src_pad'])
+            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad'])
 
             src, tgt = src.to(self.device), tgt.to(self.device)
             src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
@@ -138,8 +138,8 @@ class Trainer:
         with torch.no_grad():
             for src, tgt in self.val_loader:
                 # 生成掩码
-                src_mask = Transformer.generate_src_mask(src)
-                tgt_mask = Transformer.generate_tgt_mask(tgt)
+                src_mask = model.generate_src_mask(src, self.config['src_pad'])
+                tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad'])
 
                 src, tgt = src.to(self.device), tgt.to(self.device)
                 src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
@@ -220,15 +220,6 @@ class Trainer:
 
 # 示例用法
 if __name__ == '__main__':
-    # 配置参数
-    config = {
-        'device': 'cuda' if torch.cuda.is_available() else 'cpu',
-        'epochs': 20,
-        'save_dir': './checkpoints',
-        'log_dir': './logs',
-        'checkpoint': None  # 可以指定预训练权重路径
-    }
-    
     # 初始化模型和数据加载器
     src_vocab, tgt_vocab = create_vocabs()
     
@@ -246,7 +237,7 @@ if __name__ == '__main__':
     )
     
     # 初始化参数
-    model.init_parameters(init_type='xavier')
+    model.init_parameters()
     
     # 定义损失函数和优化器
     criterion = nn.CrossEntropyLoss(ignore_index=tgt_vocab['<pad>'])  # 忽略padding位置的损失
@@ -264,6 +255,17 @@ if __name__ == '__main__':
     train_loader = create_dataloader(src_vocab, tgt_vocab, batch_size=2, shuffle=True, drop_last=True)
     val_loader = create_dataloader(src_vocab, tgt_vocab, batch_size=2)
     
+    # 配置参数
+    config = {
+        'device': 'cuda' if torch.cuda.is_available() else 'cpu',
+        'epochs': 20,
+        'save_dir': './checkpoints',
+        'log_dir': './logs',
+        'checkpoint': None,  # 可以指定预训练权重路径
+        'src_pad': src_vocab['<pad>'],
+        'tgt_pad': tgt_vocab['<pad>']
+    }
+
     # 创建训练器
     trainer = Trainer(
         model=model,
