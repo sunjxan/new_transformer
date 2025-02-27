@@ -39,7 +39,7 @@ def build_vocab(sentences, tokenizer):
         vocab[token] = i
     return vocab
 
-def get_vocabs():
+def create_vocabs():
     # 分离中英文
     chinese_sents = [pair[0] for pair in sentences]
     english_sents = [pair[1] for pair in sentences]
@@ -69,30 +69,26 @@ class TranslationDataset(Dataset):
             return self.sentences[index]
         return
 
-def collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_seq_len):
+def collate_batch(batch, chinese_vocab, english_vocab, max_chinese_len=128, max_english_len=128):
     chinese_data = []
     english_data = []
 
     for chinese_sent, english_sent in batch:
         # 处理中文数据（源语言不加特殊标记）
         tokens = chinese_tokenizer(chinese_sent)
-        tokens = [chinese_vocab.get(t, chinese_vocab['<unk>']) for t in tokens[:chinese_seq_len]]
+        tokens = [chinese_vocab.get(t, chinese_vocab['<unk>']) for t in tokens[:max_chinese_len]]
         chinese_data.append(torch.LongTensor(tokens))
         # 处理英文数据（目标语言添加特殊标记）
         tokens = ['<sos>'] + english_tokenizer(english_sent) + ['<eos>'] 
-        tokens = [english_vocab.get(t, english_vocab['<unk>']) for t in tokens[:english_seq_len]]
+        tokens = [english_vocab.get(t, english_vocab['<unk>']) for t in tokens[:max_english_len]]
         english_data.append(torch.LongTensor(tokens))
     
     chinese_data = pad_sequence(chinese_data, batch_first=True, padding_value=chinese_vocab['<pad>'])
     english_data = pad_sequence(english_data, batch_first=True, padding_value=english_vocab['<pad>'])
     return chinese_data, english_data
 
-def create_dataloader(chinese_vocab, english_vocab, chinese_seq_len, english_seq_len, batch_size, shuffle=False, drop_last=False):
+def create_dataloader(chinese_vocab, english_vocab, batch_size, shuffle=False, drop_last=False, max_chinese_len=128, max_english_len=128):
     dataset = TranslationDataset(sentences)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
-        collate_fn=lambda batch: collate_batch(batch, chinese_vocab, chinese_seq_len, english_vocab, english_seq_len))
-    if drop_last:
-        loader_size = math.floor(len(dataset) / batch_size)
-    else:
-        loader_size = math.ceil(len(dataset) / batch_size)
-    return loader, loader_size
+        collate_fn=lambda batch: collate_batch(batch, chinese_vocab, english_vocab, max_chinese_len, max_english_len))
+    return loader

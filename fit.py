@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from data import get_vocabs, create_dataloader, chinese_tokenizer, decode_sequence
+from data import create_vocabs, create_dataloader, chinese_tokenizer, decode_sequence
 from Transformer import Transformer
 
-src_vocab, tgt_vocab = get_vocabs()
+src_vocab, tgt_vocab = create_vocabs()
 
 # 初始化模型
 model = Transformer(
@@ -36,8 +36,7 @@ optimizer = optim.AdamW(
 # 定义学习率调度器
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
 
-train_loader, train_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10, 3,
-    shuffle=True, drop_last=True)
+train_loader = create_dataloader(src_vocab, tgt_vocab, 3, shuffle=True, drop_last=True)
 
 model.train()
 
@@ -75,7 +74,7 @@ for _ in range(10):
 
     scheduler.step()
 
-val_loader, val_loader_size = create_dataloader(src_vocab, tgt_vocab, 8, 10, 3)
+val_loader = create_dataloader(src_vocab, tgt_vocab, 3)
 
 model.eval()
 
