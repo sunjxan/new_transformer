@@ -38,6 +38,8 @@ class Trainer:
         self.epochs = config['epochs']
         self.save_dir = config['save_dir']
         self.log_dir = config['log_dir']
+        self.print_interval_steps = config['print_interval_steps']
+        self.save_interval_epochs = config['save_interval_epochs']
         self.best_val_loss = float('inf')
         
         # 创建保存目录
@@ -51,7 +53,7 @@ class Trainer:
         self.model.to(self.device)
         
         # 加载预训练权重
-        if 'checkpoint' in config and config['checkpoint'] is not None:
+        if 'checkpoint' in config and config['checkpoint'] and os.path.exists(config['checkpoint']):
             self.load_checkpoint(config['checkpoint'])
             
         # 保存计算图
@@ -60,8 +62,8 @@ class Trainer:
     def _save_computation_graph(self):
         """保存模型计算图到TensorBoard"""
         src, tgt = next(iter(self.train_loader))
-        dummy_src = torch.randn(1, *src.shape[1:]).long().to(self.device)
-        dummy_tgt = torch.randn(1, *tgt.shape[1:]).long().to(self.device)
+        dummy_src = torch.zeros(1, *src.shape[1:]).long().to(self.device)
+        dummy_tgt = torch.zeros(1, *tgt.shape[1:]).long().to(self.device)
         self.writer.add_graph(self.model, (dummy_src, dummy_tgt))
 
     def train_epoch(self, epoch):
@@ -110,11 +112,11 @@ class Trainer:
             
             # 记录单步时间
             iter_time = time.time() - iter_start_time
-            if batch_idx % 1 == 0:
-                print(f'Train Epoch: {epoch} [{batch_idx}/{len(self.train_loader)}] Loss: {loss.item():.4f} Time: {iter_time:.3f}s')
+            if batch_idx % self.print_interval_steps == 0:
+                print(f'Train Epoch: {epoch} [{batch_idx+1}/{len(self.train_loader)}] Loss: {loss.item():.4f} Time: {iter_time:.3f}s')
                 
             # TensorBoard记录
-            global_step = epoch * len(self.train_loader) + batch_idx
+            global_step = (epoch - 1) * len(self.train_loader) + batch_idx + 1
             self.writer.add_scalar('train/step_loss', loss.item(), global_step)
             self.writer.add_scalar('train/step_time', iter_time, global_step)
         
@@ -188,11 +190,11 @@ class Trainer:
                     self.scheduler.step()
             
             # 打印日志
-            print(f'\nEpoch: {epoch}/{self.epochs} Train Loss: {train_loss:.4f} Time: {train_time:.1f}s | '
+            print(f'\nEpoch: {epoch}/{self.epochs} Train Loss: {train_loss:.4f} Time: {train_time:.3f}s | '
                   f'Val Loss: {val_loss:.4f} Time: {val_time:.1f}s\n')
             
             # 定期保存模型
-            if epoch % 5 == 0:
+            if (epoch - 1) % self.save_interval_epochs == 0:
                 self.save_checkpoint(f'checkpoint_epoch_{epoch}.pth')
 
         self.writer.close()
@@ -261,7 +263,9 @@ if __name__ == '__main__':
         'epochs': 20,
         'save_dir': './checkpoints',
         'log_dir': './logs',
-        'checkpoint': None,  # 可以指定预训练权重路径
+        'checkpoint': './checkpoints/best_model.pth',  # 可以指定预训练权重路径
+        'print_interval_steps': 10,
+        'save_interval_epochs': 5,
         'src_pad': src_vocab['<pad>'],
         'tgt_pad': tgt_vocab['<pad>']
     }
