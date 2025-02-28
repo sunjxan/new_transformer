@@ -79,8 +79,8 @@ class Trainer:
             iter_start_time = time.time()
             
             # 生成掩码
-            src_mask = model.generate_src_mask(src, self.config['src_pad'])
-            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad'])
+            src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
+            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
 
             src, tgt = src.to(self.device), tgt.to(self.device)
             src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
@@ -143,8 +143,8 @@ class Trainer:
         with torch.no_grad():
             for src, tgt in self.val_loader:
                 # 生成掩码
-                src_mask = model.generate_src_mask(src, self.config['src_pad'])
-                tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad'])
+                src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
+                tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
 
                 src, tgt = src.to(self.device), tgt.to(self.device)
                 src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
@@ -270,8 +270,8 @@ if __name__ == '__main__':
         'checkpoint': './checkpoints/checkpoint_best.pth',  # 可以指定预训练权重路径
         'print_interval_steps': 10,
         'save_interval_epochs': 5,
-        'src_pad': src_vocab['<pad>'],
-        'tgt_pad': tgt_vocab['<pad>']
+        'src_pad_idx': src_vocab['<pad>'],
+        'tgt_pad_idx': tgt_vocab['<pad>']
     }
 
     # 创建训练器

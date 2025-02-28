@@ -5,6 +5,7 @@ from data import create_vocabs, chinese_tokenizer, decode_sequence
 from Transformer import Transformer
 
 def process_data(model, sentence, tokenizer, vocab, max_len=128, device='cpu'):
+    """处理输入数据并生成编码器输出"""
     tokens = tokenizer(sentence)
     src = [vocab.get(t, vocab['<unk>']) for t in tokens[:max_len]]
     src = torch.LongTensor(src).unsqueeze(0).to(device)
@@ -12,43 +13,42 @@ def process_data(model, sentence, tokenizer, vocab, max_len=128, device='cpu'):
     memory = model.encode(src, src_mask)
     return memory, src_mask
 
-def get_probs(memory, ys, src_mask, tgt_vocab):
-    tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>'])
+def get_probs(model, memory, ys, src_mask, tgt_vocab, device='cpu'):
+    """获取下一个token的概率分布"""
+    tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>']).to(device)
     decoder_output = model.decode(ys, memory, tgt_mask, src_mask)
     output = model.generator(decoder_output[:, -1])
-    probs = torch.log_softmax(output, dim=-1)
-    return probs
+    return torch.log_softmax(output, dim=-1)
 
-def greedy_decode(model, sentence, tokenizer, src_vocab, tgt_vocab, max_len=20):
+def greedy_decode(model, sentence, tokenizer, src_vocab, tgt_vocab, max_len=50, device='cpu'):
     model.eval()
     
-    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab)
+    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
     start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
-    ys = torch.LongTensor([start_token]).unsqueeze(0)
+    ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
     
     for _ in range(max_len - 1):
-        probs = get_probs(memory, ys, src_mask, tgt_vocab)
-        next_token = torch.argmax(probs, dim=-1).unsqueeze(-1)
+        probs = get_probs(model, memory, ys, src_mask, tgt_vocab, device=device)
+        next_token = torch.argmax(probs, dim=-1, keepdim=True)
         ys = torch.cat([ys, next_token], dim=-1)
-        if next_token == end_token:
+        if next_token.item() == end_token:
             break
 
-    return ys[0].tolist()
+    return ys[0].cpu().tolist()
 
-def normalize_score(seq, score, alpha=0.75):
-    length = len(seq)
-    penalty = ((5 + length) / (5 + 1)) ** alpha  # Google的GNMT公式
+def normalize_scores(seq, score, len_penalty=0.75):
+    penalty = ((5 + len(seq)) / (5 + 1)) ** len_penalty  # Google的GNMT公式
     return score / penalty
 
 def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
-                       max_len=20, beam_width=5, alpha=0.75):  # alpha长度惩罚系数
+                       max_len=50, beam_width=5, len_penalty=0.75, device='cpu'):  # len_penalty长度惩罚系数
     model.eval()
     
-    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab)
+    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
     start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
 
     # 初始化：序列、分数、完成状态
-    beam = [ ( [start_token], 0 ) ]  # (tokens, score)
+    beam = [ ( [start_token], 0.0 ) ]  # (tokens, score)
     completed = []
     
     for _ in range(max_len - 1):
@@ -63,7 +63,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
                 
             # 获取下一个token的概率分布
             ys = torch.LongTensor(seq).unsqueeze(0)
-            probs = get_probs(memory, ys, src_mask, tgt_vocab)
+            probs = get_probs(model, memory, ys, src_mask, tgt_vocab, device=device)
             probs = probs.squeeze()
             ordered = torch.argsort(probs, dim=-1, descending=True)
             # 取top k个候选
@@ -83,7 +83,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
         new_beam = []
         for seq, score in candidates:
             if seq[-1] == end_token:
-                completed.append( (seq, normalize_score(seq, score, alpha)) )  # 长度归一化
+                completed.append( (seq, normalize_scores(seq, score, len_penalty)) )  # 长度归一化
             else:
                 new_beam.append( (seq, score) )
         beam = new_beam
@@ -92,7 +92,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
             break  # 所有候选均已完成
             
     # 合并未完成的序列
-    completed += [ (seq, normalize_score(seq, score, alpha)) for seq, score in beam ]
+    completed += [ (seq, normalize_scores(seq, score, len_penalty)) for seq, score in beam ]
     
     # 按归一化分数排序返回
     return sorted(completed, key=lambda x: x[1], reverse=True)
@@ -124,8 +124,8 @@ if __name__ == '__main__':
     sentence = input('请输入中文句子：\n')
     print('input:', sentence)
 
-    predictions = greedy_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab)
+    predictions = greedy_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
     print('greedy decode:', decode_sequence(predictions, tgt_vocab))
 
-    beam_search_result = beam_search_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab)
+    beam_search_result = beam_search_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
     print('beam search decode:', decode_sequence(beam_search_result[0][0], tgt_vocab))

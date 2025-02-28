@@ -89,6 +89,5 @@ def collate_batch(batch, chinese_vocab, english_vocab, max_chinese_len=128, max_
 
 def create_dataloader(chinese_vocab, english_vocab, batch_size, shuffle=False, drop_last=False, max_chinese_len=128, max_english_len=128):
     dataset = TranslationDataset(sentences)
-    loader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
+    return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, drop_last=drop_last,
         collate_fn=lambda batch: collate_batch(batch, chinese_vocab, english_vocab, max_chinese_len, max_english_len))
-    return loader
