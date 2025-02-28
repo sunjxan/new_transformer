@@ -45,10 +45,12 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
     model.eval()
     
     memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
-    start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
 
     # 初始化：序列、分数、完成状态
-    beam = [ ( [start_token], 0.0 ) ]  # (tokens, score)
+    start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
+    ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
+    beam = [ ( ys, 0.0 ) ]  # (tokens, score)
+    # 存储完整序列
     completed = []
     
     for _ in range(max_len - 1):
@@ -57,22 +59,18 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
         # 遍历当前所有候选
         for seq, score in beam:
             # 如果序列已结束，直接保留
-            if seq[-1] == end_token:
+            if seq[0, -1].item() == end_token:
                 candidates.append( (seq, score) )
                 continue
                 
             # 获取下一个token的概率分布
-            ys = torch.LongTensor(seq).unsqueeze(0)
-            probs = get_probs(model, memory, ys, src_mask, tgt_vocab, device=device)
-            probs = probs.squeeze()
-            ordered = torch.argsort(probs, dim=-1, descending=True)
-            # 取top k个候选
-            top_k = ordered[:beam_width].tolist()
-
-            for token in top_k:
-                new_seq = seq + [token]
-                # log
-                new_score = score + probs[token].item()
+            probs = get_probs(model, memory, seq, src_mask, tgt_vocab, device=device)
+            top_probs, top_indices = torch.topk(probs, beam_width, dim=-1)
+            
+            for i in range(beam_width):
+                token = top_indices[0, i].unsqueeze(0).unsqueeze(0)
+                new_seq = torch.cat([seq, token], dim=-1)
+                new_score = score + top_probs[0, i].item()
                 candidates.append( (new_seq, new_score) )
         
         # 按分数排序，保留top beam_width个
@@ -82,8 +80,8 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
         # 分离已完成的序列
         new_beam = []
         for seq, score in candidates:
-            if seq[-1] == end_token:
-                completed.append( (seq, normalize_scores(seq, score, len_penalty)) )  # 长度归一化
+            if seq[0, -1].item() == end_token:
+                completed.append( (seq[0].cpu().tolist(), normalize_scores(seq, score, len_penalty)) )  # 长度归一化
             else:
                 new_beam.append( (seq, score) )
         beam = new_beam
@@ -92,7 +90,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
             break  # 所有候选均已完成
             
     # 合并未完成的序列
-    completed += [ (seq, normalize_scores(seq, score, len_penalty)) for seq, score in beam ]
+    completed += [ (seq[0].cpu().tolist(), normalize_scores(seq, score, len_penalty)) for seq, score in beam ]
     
     # 按归一化分数排序返回
     return sorted(completed, key=lambda x: x[1], reverse=True)
