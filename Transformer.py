@@ -232,3 +232,37 @@ class Transformer(nn.Module):
     def generate_tgt_mask(seq, pad_idx=0):
         '''结合填充掩码和因果掩码得到目标序列掩码'''
         return Transformer.generate_src_mask(seq, pad_idx) & Transformer.generate_causal_mask(seq.size(-1))   # (batch_size, seq_len, seq_len)
+
+'''
+    计算模型参数量
+
+    1. 嵌入层
+    源语言嵌入：src_vocab_size × d_model
+    目标语言嵌入：tgt_vocab_size × d_model
+
+    2. 编码器（Encoder）
+    每层包含：
+        1个多头注意力（4个线性层，无偏置项）：4 × (d_model × d_model)
+        前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
+        2个归一化层：2 × (d_model + d_model)
+    最终归一化层（norm_first=True时）：d_model + d_model
+    总参数量：
+        num_encoder_layers × [4d² + 2d·d_ff + d_ff + 5d] + 2d
+
+    3. 解码器（Decoder）
+    每层包含：
+        2个多头注意力（4个线性层，无偏置项）：2 × 4 × (d_model × d_model)
+        前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
+        3个归一化层：3 × (d_model + d_model)
+    最终归一化层（norm_first=True时）：d_model + d_model
+    总参数量：
+        num_decoder_layers × [8d² + 2d·d_ff + d_ff + 7d] + 2d
+
+    4. 生成器（Generator）
+    线性层：d_model × tgt_vocab_size + tgt_vocab_size
+'''
+def count_parameters(model):
+    for n, p in model.named_parameters():
+        if p.requires_grad:
+            print(n, p.numel())
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
