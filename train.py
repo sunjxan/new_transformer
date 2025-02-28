@@ -62,9 +62,12 @@ class Trainer:
     def _save_computation_graph(self):
         """保存模型计算图到TensorBoard"""
         src, tgt = next(iter(self.train_loader))
-        dummy_src = torch.zeros(1, *src.shape[1:]).long().to(self.device)
-        dummy_tgt = torch.zeros(1, *tgt.shape[1:]).long().to(self.device)
-        self.writer.add_graph(self.model, (dummy_src, dummy_tgt))
+        src_shape, tgt_shape = src.shape[1:], tgt.shape[1:]
+        dummy_src = torch.zeros(1, *src_shape).long().to(self.device)
+        dummy_tgt = torch.zeros(1, *tgt_shape).long().to(self.device)
+        dummy_src_mask = torch.zeros(1, 1, *src_shape).bool().to(self.device)
+        dummy_tgt_mask = torch.zeros(1, *tgt_shape, *tgt_shape).bool().to(self.device)
+        self.writer.add_graph(self.model, (dummy_src, dummy_tgt, dummy_src_mask, dummy_tgt_mask))
 
     def train_epoch(self, epoch):
         """训练单个epoch"""

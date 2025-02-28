@@ -156,7 +156,7 @@ class Transformer(nn.Module):
         
         return memory
 
-    def decode(self, memory, tgt, src_mask=None, tgt_mask=None):
+    def decode(self, tgt, memory, tgt_mask=None, src_mask=None):
         """
         解码
         Args:
@@ -184,7 +184,7 @@ class Transformer(nn.Module):
         Args:
             src (Tensor): 源序列 (batch_size, src_seq_len)
             tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
-            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
+            src_mask (Tensor): 源序列掩码 (batch_size, 1, src_seq_len)
             tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
@@ -193,7 +193,7 @@ class Transformer(nn.Module):
         memory = self.encode(src, src_mask)  # (batch_size, src_seq_len, d_model)
 
         # 2. 解码
-        decoder_output = self.decode(memory, tgt, src_mask, tgt_mask)  # (batch_size, tgt_seq_len, d_model)
+        decoder_output = self.decode(tgt, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
         
         # 3. 输出层映射到词表
         output = self.generator(decoder_output)  # (batch_size, tgt_seq_len, tgt_vocab_size)
