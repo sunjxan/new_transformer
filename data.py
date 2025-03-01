@@ -13,6 +13,19 @@ sentences = [
     ['神经网络非常复杂', 'Neural-networks are complex']
 ]
 
+def filter_examples(example):
+    zh_len = len(example[0])
+    en_len = len(example[1])
+    
+    return (
+        1 < zh_len < 150 and   # 控制中英文长度
+        1 < en_len < 200 and
+        not any(c in example[0] for c in ['�', '�'])  # 过滤非法字符
+    )
+
+# 数据清洗
+sentences = list(filter(filter_examples, sentences))
+
 # 定义特殊标记
 SPECIAL_TOKENS = ['<pad>', '<sos>', '<eos>', '<unk>']
 
