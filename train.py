@@ -196,7 +196,7 @@ class Trainer:
             
             # 打印日志
             print(f'\nEpoch: {epoch}/{self.epochs} Train Loss: {train_loss:.4f} Time: {train_time:.3f}s | '
-                  f'Val Loss: {val_loss:.4f} Time: {val_time:.1f}s\n')
+                  f'Val Loss: {val_loss:.4f} Time: {val_time:.3f}s\n')
             
             # 定期保存模型
             if (epoch - 1) % self.save_interval_epochs == 0:
