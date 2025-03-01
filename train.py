@@ -78,13 +78,12 @@ class Trainer:
         
         for batch_idx, (src, tgt) in enumerate(self.train_loader):
             iter_start_time = time.time()
+
+            src, tgt = src.to(self.device), tgt.to(self.device)
             
             # 生成掩码
             src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
             tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
-
-            src, tgt = src.to(self.device), tgt.to(self.device)
-            src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
 
             # 梯度清零
             self.optimizer.zero_grad()
@@ -143,12 +142,11 @@ class Trainer:
         
         with torch.no_grad():
             for src, tgt in self.val_loader:
+                src, tgt = src.to(self.device), tgt.to(self.device)
+
                 # 生成掩码
                 src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
                 tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
-
-                src, tgt = src.to(self.device), tgt.to(self.device)
-                src_mask, tgt_mask = src_mask.to(self.device), tgt_mask.to(self.device)
 
                 # 前向传播
                 output = model(

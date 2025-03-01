@@ -9,13 +9,13 @@ def process_data(model, sentence, tokenizer, vocab, max_len=128, device='cpu'):
     tokens = tokenizer(sentence)
     src = [vocab.get(t, vocab['<unk>']) for t in tokens[:max_len]]
     src = torch.LongTensor(src).unsqueeze(0).to(device)
-    src_mask = model.generate_src_mask(src, vocab['<pad>']).to(device)
+    src_mask = model.generate_src_mask(src, vocab['<pad>'])
     memory = model.encode(src, src_mask)
     return memory, src_mask
 
-def get_probs(model, memory, ys, src_mask, tgt_vocab, device='cpu'):
+def get_probs(model, memory, ys, src_mask, tgt_vocab):
     """获取下一个token的概率分布"""
-    tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>']).to(device)
+    tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>'])
     decoder_output = model.decode(ys, memory, tgt_mask, src_mask)
     output = model.generator(decoder_output[:, -1])
     return torch.log_softmax(output, dim=-1)
