@@ -231,7 +231,7 @@ class Transformer(nn.Module):
     @staticmethod
     def generate_tgt_mask(seq, pad_idx=0):
         '''结合填充掩码和因果掩码得到目标序列掩码'''
-        return Transformer.generate_src_mask(seq, pad_idx) & Transformer.generate_causal_mask(seq.size(-1))   # (batch_size, seq_len, seq_len)
+        return Transformer.generate_src_mask(seq, pad_idx) & Transformer.generate_causal_mask(seq.size(-1)).to(seq.device)   # (batch_size, seq_len, seq_len)
 
 '''
     计算模型参数量
