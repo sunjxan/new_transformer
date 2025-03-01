@@ -116,7 +116,7 @@ if __name__ == '__main__':
     
     ckpt_path = './checkpoints/checkpoint_best.pth'
     if os.path.exists(ckpt_path):
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path, weights_only=True)
         model.load_state_dict(checkpoint['model_state_dict'])
 
     sentence = input('请输入中文句子：\n')

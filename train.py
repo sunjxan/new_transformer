@@ -2,6 +2,7 @@ import os
 import time
 import torch
 import torch.nn as nn
+
 from torch.utils.tensorboard import SummaryWriter
 
 from data import create_vocabs, create_dataloader
@@ -216,7 +217,7 @@ class Trainer:
 
     def load_checkpoint(self, checkpoint_path):
         """加载模型检查点"""
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, weights_only=True)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         if self.scheduler and checkpoint['scheduler_state_dict']:
