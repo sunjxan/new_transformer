@@ -28,7 +28,7 @@ def greedy_decode(model, sentence, tokenizer, src_vocab, tgt_vocab, max_len=50, 
     ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
     
     for _ in range(max_len - 1):
-        probs = get_probs(model, memory, ys, src_mask, tgt_vocab, device=device)
+        probs = get_probs(model, memory, ys, src_mask, tgt_vocab)
         next_token = torch.argmax(probs, dim=-1, keepdim=True)
         ys = torch.cat([ys, next_token], dim=-1)
         if next_token.item() == end_token:
@@ -64,7 +64,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
                 continue
                 
             # 获取下一个token的概率分布
-            probs = get_probs(model, memory, seq, src_mask, tgt_vocab, device=device)
+            probs = get_probs(model, memory, seq, src_mask, tgt_vocab)
             top_probs, top_indices = torch.topk(probs, beam_width, dim=-1)
             
             for i in range(beam_width):
