@@ -19,10 +19,10 @@ class DecoderLayer(nn.Module):
         super().__init__()
         
         # 1. 带掩码的多头自注意力层（用于处理目标序列）
-        self.self_attn = MultiHeadAttention(d_model, num_heads)
+        self.self_attn = MultiHeadAttention(d_model, num_heads, dropout)
         
         # 2. 多头交叉注意力层（用于处理编码器输出）
-        self.cross_attn = MultiHeadAttention(d_model, num_heads)
+        self.cross_attn = MultiHeadAttention(d_model, num_heads, dropout)
         
         # 3. 前馈网络
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)

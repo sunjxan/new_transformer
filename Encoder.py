@@ -19,7 +19,7 @@ class EncoderLayer(nn.Module):
         super().__init__()
         
         # 1. 多头自注意力层
-        self.self_attn = MultiHeadAttention(d_model, num_heads)
+        self.self_attn = MultiHeadAttention(d_model, num_heads, dropout)
         
         # 2. 前馈网络
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
