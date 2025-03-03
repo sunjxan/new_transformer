@@ -6,7 +6,7 @@ from PositionwiseFeedForward import PositionwiseFeedForward
 from SublayerConnection import SublayerConnection
 
 class DecoderLayer(nn.Module):
-    def __init__(self, d_model, num_heads, d_ff, dropout=0.1, norm_first=True):
+    def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
         """
         Transformer的单个解码器层。
         
@@ -28,9 +28,9 @@ class DecoderLayer(nn.Module):
         self.ffn = PositionwiseFeedForward(d_model, d_ff, dropout)
         
         # 4. 层归一化（LayerNorm） + Dropout层
-        self.sublayer1 = SublayerConnection(d_model, dropout, norm_first)
-        self.sublayer2 = SublayerConnection(d_model, dropout, norm_first)
-        self.sublayer3 = SublayerConnection(d_model, dropout, norm_first)
+        self.sublayer1 = SublayerConnection(d_model, dropout)
+        self.sublayer2 = SublayerConnection(d_model, dropout)
+        self.sublayer3 = SublayerConnection(d_model, dropout)
     
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
@@ -60,7 +60,7 @@ class DecoderLayer(nn.Module):
         return x  # 输出shape: (batch_size, tgt_seq_len, d_model)
 
 class Decoder(nn.Module):
-    def __init__(self, num_layers, d_model, num_heads, d_ff, dropout=0.1, norm_first=True):
+    def __init__(self, num_layers, d_model, num_heads, d_ff, dropout=0.1):
         """
         Transformer Decoder 模块
         Args:
@@ -73,12 +73,10 @@ class Decoder(nn.Module):
         super().__init__()
 
         self.layers = nn.ModuleList([
-            DecoderLayer(d_model, num_heads, d_ff, dropout, norm_first)
+            DecoderLayer(d_model, num_heads, d_ff, dropout)
             for _ in range(num_layers)
         ])
-
-        self.norm = nn.LayerNorm(d_model) if norm_first else None  # 最终归一化层
-    
+        
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
         前向传播
@@ -94,8 +92,5 @@ class Decoder(nn.Module):
         # 逐层传递输入
         for layer in self.layers:
             x = layer(x, enc_output, tgt_mask, src_mask)
-
-        if self.norm:
-            x = self.norm(x)  # 最终归一化
-
+        
         return x

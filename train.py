@@ -228,18 +228,8 @@ if __name__ == '__main__':
     # 初始化模型和数据加载器
     src_vocab, tgt_vocab = create_vocabs()
     
-    # 初始化模型
-    model = Transformer(
-        src_vocab_size=len(src_vocab),
-        tgt_vocab_size=len(tgt_vocab),
-        d_model=512,
-        num_heads=8,
-        num_encoder_layers=6,
-        num_decoder_layers=6,
-        d_ff=2048,
-        max_seq_len=512,
-        dropout=0.1
-    )
+    # 创建模型
+    model = Transformer(len(src_vocab), len(tgt_vocab))
     
     # 初始化参数
     model.init_parameters()
