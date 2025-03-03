@@ -1,7 +1,7 @@
 import torch
 import jieba
 
-from collections import defaultdict
+from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
@@ -41,10 +41,9 @@ def english_tokenizer(text):
 # 构建词汇表
 def build_vocab(sentences, tokenizer):
     """构建词汇表"""
-    counter = defaultdict(int)
+    counter = Counter()
     for sent in sentences:
-        for token in tokenizer(sent):
-            counter[token] += 1
+        counter.update(tokenizer(sent))
     vocab = {token: i+len(SPECIAL_TOKENS) for i, token in enumerate(sorted(counter))}
     # 添加特殊标记
     for i, token in enumerate(SPECIAL_TOKENS):
