@@ -120,7 +120,6 @@ class Transformer(nn.Module):
             dropout (float): Dropout 概率
         """
         super().__init__()
-        self.d_model = d_model
         
         # 1. 词嵌入层
         self.src_embed = Embeddings(src_vocab_size, d_model)  # (src_vocab_size, d_model)
@@ -160,10 +159,10 @@ class Transformer(nn.Module):
         """
         解码
         Args:
-            memory (Tensor): 编码结果 (batch_size, src_seq_len, d_model)
             tgt (Tensor): 目标序列 (batch_size, tgt_seq_len)
-            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
+            memory (Tensor): 编码结果 (batch_size, src_seq_len, d_model)
             tgt_mask (Tensor): 目标序列掩码 (batch_size, tgt_seq_len, tgt_seq_len)
+            src_mask (Tensor): 源序列掩码 (batch_size, src_seq_len, src_seq_len)
         Returns:
             decoder_output (Tensor): 解码结果 (batch_size, tgt_seq_len, d_model)
         """
