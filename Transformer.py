@@ -261,7 +261,4 @@ class Transformer(nn.Module):
     线性层：d_model × tgt_vocab_size + tgt_vocab_size
 '''
 def count_parameters(model):
-    for n, p in model.named_parameters():
-        if p.requires_grad:
-            print(n, p.numel())
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
