@@ -140,29 +140,29 @@ class Trainer:
         total_loss = 0.0
         start_time = time.time()
         
-        with torch.no_grad():
-            for src, tgt in self.val_loader:
-                src, tgt = src.to(self.device), tgt.to(self.device)
+        for src, tgt in self.val_loader:
+            src, tgt = src.to(self.device), tgt.to(self.device)
 
-                # 生成掩码
-                src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
-                tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
+            # 生成掩码
+            src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
+            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
 
-                # 前向传播
+            # 前向传播
+            with torch.no_grad():
                 output = model(
                     src=src,
                     tgt=tgt[:, :-1],  # 解码器输入去尾
                     src_mask=src_mask,
                     tgt_mask=tgt_mask[:, :-1, :-1]
                 )
-                
-                # 计算损失
-                loss = self.criterion(
-                    output.contiguous().view(-1, output.size(-1)),
-                    tgt[:, 1:].contiguous().view(-1)  # 目标去头
-                )
+            
+            # 计算损失
+            loss = self.criterion(
+                output.contiguous().view(-1, output.size(-1)),
+                tgt[:, 1:].contiguous().view(-1)  # 目标去头
+            )
 
-                total_loss += loss.item()
+            total_loss += loss.item()
         
         avg_loss = total_loss / len(self.val_loader)
         epoch_time = time.time() - start_time
