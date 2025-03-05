@@ -66,6 +66,8 @@ class Encoder(nn.Module):
             EncoderLayer(d_model, num_heads, d_ff, dropout) 
             for _ in range(num_layers)
         ])
+        
+        self.norm = nn.LayerNorm(d_model)  # 最终归一化层（SublayerConnection选用Post-LN 结构时删除）
     
     def forward(self, x, mask=None):
         """
@@ -79,5 +81,7 @@ class Encoder(nn.Module):
         # 逐层通过 EncoderLayer
         for layer in self.layers:
             x = layer(x, mask)  # 每层输出保持 (batch_size, seq_len, d_model)
+        
+        x = self.norm(x)  # 最终归一化
         
         return x

@@ -246,16 +246,18 @@ class Transformer(nn.Module):
         1个多头注意力（4个线性层，无偏置项）：4 × (d_model × d_model)
         前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
         2个归一化层：2 × (d_model + d_model)
+    最终归一化层：d_model + d_model
     总参数量：
-        num_encoder_layers × [4d² + 2d·d_ff + d_ff + 5d]
+        num_encoder_layers × [4d² + 2d·d_ff + d_ff + 5d] + 2d
     
     3. 解码器（Decoder）
     每层包含：
         2个多头注意力（4个线性层，无偏置项）：2 × 4 × (d_model × d_model)
         前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
         3个归一化层：3 × (d_model + d_model)
+    最终归一化层：d_model + d_model
     总参数量：
-        num_decoder_layers × [8d² + 2d·d_ff + d_ff + 7d]
+        num_decoder_layers × [8d² + 2d·d_ff + d_ff + 7d] + 2d
     
     4. 生成器（Generator）
     线性层：d_model × tgt_vocab_size + tgt_vocab_size

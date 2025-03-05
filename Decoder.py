@@ -76,6 +76,8 @@ class Decoder(nn.Module):
             DecoderLayer(d_model, num_heads, d_ff, dropout)
             for _ in range(num_layers)
         ])
+        
+        self.norm = nn.LayerNorm(d_model)  # 最终归一化层（SublayerConnection选用Post-LN 结构时删除）
     
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
@@ -92,5 +94,7 @@ class Decoder(nn.Module):
         # 逐层传递输入
         for layer in self.layers:
             x = layer(x, enc_output, tgt_mask, src_mask)
+        
+        x = self.norm(x)  # 最终归一化
         
         return x
