@@ -1,4 +1,5 @@
 import torch
+import re
 import jieba
 
 from collections import Counter
@@ -6,25 +7,31 @@ from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
 
 # 原始数据
-sentences = [
+examples = [
     ['我爱学习人工智能', 'I love studying AI'],
     ['深度学习改变世界', ' Deep learning changed the world'],
     ['自然语言处理很强大', 'NLP is powerful'],
     ['神经网络非常复杂', 'Neural-networks are complex']
 ]
 
-def filter_examples(example):
-    zh_len = len(example[0])
-    en_len = len(example[1])
+def clean_text(example):
+    texts = example[:]
+    for ix, text in enumerate(texts):
+        # 过滤非法字符
+        text = re.sub(r'[�◆★【】▲▼■●]', '', text)
+        # 合并连续空格
+        text = re.sub(r'\s+', ' ', text)
+        texts[ix] = text.strip()
     
-    return (
-        1 < zh_len < 150 and   # 控制中英文长度
-        1 < en_len < 200 and
-        not any(c in example[0] for c in ['�', '�'])  # 过滤非法字符
-    )
+    if 1 < len(texts[0]) < 150 and 1 < len(texts[1]) < 200:
+        return texts
 
 # 数据清洗
-sentences = list(filter(filter_examples, sentences))
+sentences = []
+for example in examples:
+    cleaned = clean_text(example)
+    if cleaned:
+        sentences.append(cleaned)
 
 # 定义特殊标记
 SPECIAL_TOKENS = ['<pad>', '<sos>', '<eos>', '<unk>']
