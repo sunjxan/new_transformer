@@ -4,10 +4,10 @@ import torch
 from data import create_vocabs, chinese_tokenizer, decode_sequence
 from Transformer import Transformer
 
-def process_data(model, sentence, tokenizer, vocab, max_len=128, device='cpu'):
+def process_data(model, sentence, tokenizer, vocab, device='cpu'):
     """处理输入数据并生成编码器输出"""
     tokens = tokenizer(sentence)
-    src = [vocab.get(t, vocab['<unk>']) for t in tokens[:max_len]]
+    src = [vocab.get(t, vocab['<unk>']) for t in tokens[:model.max_seq_len]]
     src = torch.LongTensor(src).unsqueeze(0).to(device)
     src_mask = model.generate_src_mask(src, vocab['<pad>'])
     with torch.no_grad():
@@ -16,6 +16,7 @@ def process_data(model, sentence, tokenizer, vocab, max_len=128, device='cpu'):
 
 def get_probs(model, memory, ys, src_mask, tgt_vocab):
     """获取下一个token的概率分布"""
+    ys = ys[:, -model.max_seq_len:]
     tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>'])
     with torch.no_grad():
         decoder_output = model.decode(ys, memory, tgt_mask, src_mask)
