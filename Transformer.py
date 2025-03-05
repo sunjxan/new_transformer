@@ -29,7 +29,7 @@ class PositionalEncoding(nn.Module):
         """
         super().__init__()
         self.dropout = nn.Dropout(p=dropout)  # Dropout层
-
+        
         # 初始化位置编码矩阵，shape: (max_len, d_model)
         pe = torch.zeros(max_len, d_model)
         
@@ -53,7 +53,7 @@ class PositionalEncoding(nn.Module):
         
         # 将位置编码矩阵注册为缓冲区（不参与梯度更新）
         self.register_buffer("pe", pe)
-
+    
     def forward(self, x):
         """
         前向传播
@@ -87,7 +87,7 @@ class Generator(nn.Module):
         # 输入shape: (batch_size, seq_len, d_model)
         # 输出shape: (batch_size, seq_len, vocab_size)
         self.proj = nn.Linear(d_model, vocab_size)
-
+    
     def forward(self, decoder_output):
         """
         前向传播
@@ -105,7 +105,8 @@ class Generator(nn.Module):
         return logits  # 直接返回logits（更高效，避免重复计算Softmax）
 
 class Transformer(nn.Module):
-    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8, num_encoder_layers=6, num_decoder_layers=6, d_ff=2048, max_seq_len=512, dropout=0.1):
+    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8,
+                 num_encoder_layers=6, num_decoder_layers=6,d_ff=2048, max_seq_len=512, dropout=0.1):
         """
         Transformer 模型
         Args:
@@ -120,6 +121,7 @@ class Transformer(nn.Module):
             dropout (float): Dropout 概率
         """
         super().__init__()
+        self.max_seq_len = max_seq_len
         
         # 1. 词嵌入层
         self.src_embed = Embeddings(src_vocab_size, d_model)  # (src_vocab_size, d_model)
@@ -134,7 +136,7 @@ class Transformer(nn.Module):
         
         # 4. 最终线性层
         self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
-
+    
     def encode(self, src, src_mask=None):
         """
         编码
@@ -146,7 +148,7 @@ class Transformer(nn.Module):
         """
         # 1. 词嵌入
         src_emb = self.src_embed(src)  # (batch_size, src_seq_len, d_model)
-
+        
         # 2. 位置编码
         src_emb = self.positional_encoding(src_emb)  # (batch_size, src_seq_len, d_model)
         
@@ -154,7 +156,7 @@ class Transformer(nn.Module):
         memory = self.encoder(src_emb, src_mask)  # (batch_size, src_seq_len, d_model)
         
         return memory
-
+    
     def decode(self, tgt, memory, tgt_mask=None, src_mask=None):
         """
         解码
@@ -168,15 +170,15 @@ class Transformer(nn.Module):
         """
         # 1. 词嵌入
         tgt_emb = self.tgt_embed(tgt)  # (batch_size, tgt_seq_len, d_model)
-
+        
         # 2. 位置编码
         tgt_emb = self.positional_encoding(tgt_emb)  # (batch_size, tgt_seq_len, d_model)
-
+        
         # 3. 解码器处理
         decoder_output = self.decoder(tgt_emb, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
-
+        
         return decoder_output
-
+    
     def forward(self, src, tgt, src_mask=None, tgt_mask=None):
         """
         前向传播
@@ -190,7 +192,7 @@ class Transformer(nn.Module):
         """
         # 1. 编码
         memory = self.encode(src, src_mask)  # (batch_size, src_seq_len, d_model)
-
+        
         # 2. 解码
         decoder_output = self.decode(tgt, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
         
@@ -216,17 +218,17 @@ class Transformer(nn.Module):
             elif 'bias' in name:  # 偏置初始化为零
                 nn.init.zeros_(param)
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）
-
+    
     @staticmethod
     def generate_src_mask(seq, pad_idx=0):
         """生成填充掩码（pad位置为False）"""
         return (seq != pad_idx).unsqueeze(-2)  # (batch_size, 1, seq_len)
-
+    
     @staticmethod
     def generate_causal_mask(seq_len):
         """生成因果掩码（下三角为True）"""
         return torch.tril(torch.ones(seq_len, seq_len)) == 1  # (seq_len, seq_len)
-
+    
     @staticmethod
     def generate_tgt_mask(seq, pad_idx=0):
         '''结合填充掩码和因果掩码得到目标序列掩码'''
@@ -234,11 +236,11 @@ class Transformer(nn.Module):
 
 '''
     计算模型参数量
-
+    
     1. 嵌入层
     源语言嵌入：src_vocab_size × d_model
     目标语言嵌入：tgt_vocab_size × d_model
-
+    
     2. 编码器（Encoder）
     每层包含：
         1个多头注意力（4个线性层，无偏置项）：4 × (d_model × d_model)
@@ -246,7 +248,7 @@ class Transformer(nn.Module):
         2个归一化层：2 × (d_model + d_model)
     总参数量：
         num_encoder_layers × [4d² + 2d·d_ff + d_ff + 5d]
-
+    
     3. 解码器（Decoder）
     每层包含：
         2个多头注意力（4个线性层，无偏置项）：2 × 4 × (d_model × d_model)
@@ -254,7 +256,7 @@ class Transformer(nn.Module):
         3个归一化层：3 × (d_model + d_model)
     总参数量：
         num_decoder_layers × [8d² + 2d·d_ff + d_ff + 7d]
-
+    
     4. 生成器（Generator）
     线性层：d_model × tgt_vocab_size + tgt_vocab_size
 '''

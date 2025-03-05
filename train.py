@@ -59,7 +59,7 @@ class Trainer:
             
         # 保存计算图
         self._save_computation_graph()
-
+    
     def _save_computation_graph(self):
         """保存模型计算图到TensorBoard"""
         src, tgt = next(iter(self.train_loader))
@@ -69,7 +69,7 @@ class Trainer:
         dummy_src_mask = torch.zeros(1, 1, *src_shape).bool().to(self.device)
         dummy_tgt_mask = torch.zeros(1, *tgt_shape, *tgt_shape).bool().to(self.device)
         self.writer.add_graph(self.model, (dummy_src, dummy_tgt, dummy_src_mask, dummy_tgt_mask))
-
+    
     def train_epoch(self, epoch):
         """训练单个epoch"""
         self.model.train()
@@ -78,13 +78,13 @@ class Trainer:
         
         for batch_idx, (src, tgt) in enumerate(self.train_loader):
             iter_start_time = time.time()
-
+            
             src, tgt = src.to(self.device), tgt.to(self.device)
             
             # 生成掩码
             src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
             tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
-
+            
             # 梯度清零
             self.optimizer.zero_grad()
             
@@ -133,7 +133,7 @@ class Trainer:
         self.writer.add_scalar('train/epoch_time', epoch_time, epoch)
         
         return avg_loss, epoch_time
-
+    
     def validate(self, epoch):
         """验证模型"""
         self.model.eval()
@@ -142,11 +142,11 @@ class Trainer:
         
         for src, tgt in self.val_loader:
             src, tgt = src.to(self.device), tgt.to(self.device)
-
+            
             # 生成掩码
             src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
             tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
-
+            
             # 前向传播
             with torch.no_grad():
                 output = model(
@@ -161,7 +161,7 @@ class Trainer:
                 output.contiguous().view(-1, output.size(-1)),
                 tgt[:, 1:].contiguous().view(-1)  # 目标去头
             )
-
+            
             total_loss += loss.item()
         
         avg_loss = total_loss / len(self.val_loader)
@@ -178,7 +178,7 @@ class Trainer:
             torch.save(model, 'best_model.pth')
         
         return avg_loss, epoch_time
-
+    
     def train(self):
         """完整训练流程"""
         for epoch in range(1, self.epochs + 1):
@@ -199,9 +199,9 @@ class Trainer:
             # 定期保存模型
             if (epoch - 1) % self.save_interval_epochs == 0:
                 self.save_checkpoint(f'checkpoint_epoch_{epoch}.pth')
-
+        
         self.writer.close()
-
+    
     def save_checkpoint(self, filename):
         """保存模型检查点"""
         checkpoint = {
@@ -212,7 +212,7 @@ class Trainer:
             'best_val_loss': self.best_val_loss
         }
         torch.save(checkpoint, os.path.join(self.save_dir, filename))
-
+    
     def load_checkpoint(self, checkpoint_path):
         """加载模型检查点"""
         checkpoint = torch.load(checkpoint_path, weights_only=True)
@@ -262,7 +262,7 @@ if __name__ == '__main__':
         'src_pad_idx': src_vocab['<pad>'],
         'tgt_pad_idx': tgt_vocab['<pad>']
     }
-
+    
     # 创建训练器
     trainer = Trainer(
         model=model,
@@ -273,6 +273,6 @@ if __name__ == '__main__':
         scheduler=scheduler,
         config=config
     )
-
+    
     # 开始训练
     trainer.train()

@@ -36,7 +36,7 @@ def greedy_decode(model, sentence, tokenizer, src_vocab, tgt_vocab, max_len=50, 
         ys = torch.cat([ys, next_token], dim=-1)
         if next_token.item() == end_token:
             break
-
+    
     return ys[0].cpu().tolist()
 
 def normalize_scores(seq, score, len_penalty=0.75):
@@ -48,14 +48,14 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
     model.eval()
     
     memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
-
+    
     # 初始化：序列、分数、完成状态
     start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
     ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
     beam = [ ( ys, 0.0 ) ]  # (tokens, score)
     # 存储完整序列
     completed = []
-        
+    
     for _ in range(max_len - 1):
         candidates = []
         
@@ -100,7 +100,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
 
 if __name__ == '__main__':
     src_vocab, tgt_vocab = create_vocabs()
-
+    
     # 创建模型
     model = Transformer(len(src_vocab), len(tgt_vocab))
     
@@ -111,12 +111,12 @@ if __name__ == '__main__':
     if os.path.exists(ckpt_path):
         checkpoint = torch.load(ckpt_path, weights_only=True)
         model.load_state_dict(checkpoint['model_state_dict'])
-
+    
     sentence = input('请输入中文句子：\n')
     print('input:', sentence)
-
+    
     predictions = greedy_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
     print('greedy decode:', decode_sequence(predictions, tgt_vocab))
-
+    
     beam_search_result = beam_search_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
     print('beam search decode:', decode_sequence(beam_search_result[0][0], tgt_vocab))

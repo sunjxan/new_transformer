@@ -54,11 +54,11 @@ def create_vocabs():
     # 分离中英文
     chinese_sents = [pair[0] for pair in sentences]
     english_sents = [pair[1] for pair in sentences]
-
+    
     # 生成词汇表
     chinese_vocab = build_vocab(chinese_sents, chinese_tokenizer)
     english_vocab = build_vocab(english_sents, english_tokenizer)
-
+    
     return chinese_vocab, english_vocab
 
 # 预测结果解码
@@ -71,10 +71,10 @@ class TranslationDataset(Dataset):
     def __init__(self, sentences):
         super().__init__()
         self.sentences = sentences
-
+    
     def __len__(self):
         return len(self.sentences)
-
+    
     def __getitem__(self, index):
         if index >= 0 and index < self.__len__():
             return self.sentences[index]
@@ -83,7 +83,7 @@ class TranslationDataset(Dataset):
 def collate_batch(batch, chinese_vocab, english_vocab, max_chinese_len=128, max_english_len=128):
     chinese_data = []
     english_data = []
-
+    
     for chinese_sent, english_sent in batch:
         # 处理中文数据（源语言不加特殊标记）
         tokens = chinese_tokenizer(chinese_sent)

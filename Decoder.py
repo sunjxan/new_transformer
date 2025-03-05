@@ -71,12 +71,12 @@ class Decoder(nn.Module):
             dropout (float): Dropout概率，默认为0.1。
         """
         super().__init__()
-
+        
         self.layers = nn.ModuleList([
             DecoderLayer(d_model, num_heads, d_ff, dropout)
             for _ in range(num_layers)
         ])
-        
+    
     def forward(self, x, enc_output, tgt_mask=None, src_mask=None):
         """
         前向传播

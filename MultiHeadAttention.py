@@ -11,7 +11,7 @@ class ScaledDotProductAttention(nn.Module):
         """
         super().__init__()
         self.dropout = nn.Dropout(dropout)  # Dropout层
-
+    
     def forward(self, Q, K, V, mask=None):
         """
         前向传播
@@ -20,7 +20,7 @@ class ScaledDotProductAttention(nn.Module):
             K: 键张量, shape (batch_size, num_heads, seq_len_k, d_k)
             V: 值张量, shape (batch_size, num_heads, seq_len_k, d_v)
             mask: 掩码张量, shape (batch_size, 1, seq_len_q, seq_len_k)
-
+        
         Returns:
             注意力输出: shape (batch_size, num_heads, seq_len_q, d_v)
             注意力权重: shape (batch_size, num_heads, seq_len_q, seq_len_k)
@@ -28,12 +28,12 @@ class ScaledDotProductAttention(nn.Module):
         # 计算Q和K的点积得分
         scores = torch.matmul(Q, K.transpose(-2, -1))  # Q·K^T
         # scores shape: (batch_size, num_heads, seq_len_q, seq_len_k)
-
+        
         # 缩放操作：除以sqrt(d_k)防止梯度消失
         d_k = K.size(-1)  # 获取K的最后一个维度d_k
         scores = scores / math.sqrt(d_k)
         # scores shape保持不变: (batch_size, num_heads, seq_len_q, seq_len_k)
-
+        
         # 应用掩码（如果需要）
         if mask is not None:
             # 将mask中为False的位置替换为负无穷大（softmax后趋近于0）
@@ -42,17 +42,17 @@ class ScaledDotProductAttention(nn.Module):
             # src attention，mask形状(1, S)，广播后(S, S)，右侧为False，用于重新编码时忽略pad
             # tgt attention，mask形状(T, T)，右侧和右上方为False，用于重新编码时忽略pad和该词后面的词
             # tgt-src attention，mask形状(1, S)，广播后(T, S)，右侧为False，每个词根据src的value重新编码，可用于预测下一个词
-
+        
         # 计算注意力权重（最后一维进行softmax）
         attn_weights = torch.softmax(scores, dim=-1)
         # attn_weights shape: (batch_size, num_heads, seq_len_q, seq_len_k)
-
+        
         attn_weights = self.dropout(attn_weights)
-
+        
         # 将注意力权重应用到V上
         output = torch.matmul(attn_weights, V)
         # output shape: (batch_size, num_heads, seq_len_q, d_v)
-
+        
         return output, attn_weights
 
 class MultiHeadAttention(nn.Module):
@@ -97,7 +97,7 @@ class MultiHeadAttention(nn.Module):
         Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_q, d_k)
         K = self.W_k(K).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
         V = self.W_v(V).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
-
+        
         # 转置维度以便矩阵计算 (batch_size, num_heads, seq_len, d_k)
         Q = Q.transpose(1, 2).contiguous()
         K = K.transpose(1, 2).contiguous()
@@ -107,7 +107,7 @@ class MultiHeadAttention(nn.Module):
         if mask is not None:
             # 扩展掩码维度以匹配多头 (batch_size, 1, seq_len_q, seq_len_kv) -> 广播到num_heads
             mask = mask.unsqueeze(1)
-
+        
         output, attn_weights = self.attn(Q, K, V, mask)
         
         # 转置回维度 (batch_size, seq_len_q, num_heads, d_k)
