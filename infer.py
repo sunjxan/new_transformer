@@ -6,8 +6,8 @@ from Transformer import Transformer
 
 def process_data(model, sentence, tokenizer, vocab, device='cpu'):
     """处理输入数据并生成编码器输出"""
-    tokens = tokenizer(sentence)
-    src = [vocab.get(t, vocab['<unk>']) for t in tokens[:model.max_seq_len]]
+    tokens = tokenizer(sentence)[:model.max_seq_len]
+    src = [vocab.get(t, vocab['<unk>']) for t in tokens]
     src = torch.LongTensor(src).unsqueeze(0).to(device)
     src_mask = model.generate_src_mask(src, vocab['<pad>'])
     with torch.no_grad():
