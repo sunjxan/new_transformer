@@ -33,46 +33,88 @@ for example in examples:
     if cleaned:
         sentences.append(cleaned)
 
-# 定义特殊标记
-SPECIAL_TOKENS = ['<pad>', '<sos>', '<eos>', '<unk>']
-
-# 中英文处理函数
-def chinese_tokenizer(text):
-    """中文按字符分割"""
-    return list(jieba.cut(text.strip()))
-
-def english_tokenizer(text):
-    """英文按空格分割并转小写"""
-    return [token.strip().lower() for token in text.strip().split() if token]
-
-# 构建词汇表
-def build_vocab(sentences, tokenizer):
-    """构建词汇表"""
-    counter = Counter()
-    for sent in sentences:
-        counter.update(tokenizer(sent))
-    vocab = {token: i+len(SPECIAL_TOKENS) for i, token in enumerate(sorted(counter))}
-    # 添加特殊标记
-    for i, token in enumerate(SPECIAL_TOKENS):
-        vocab[token] = i
-    return vocab
-
-def create_vocabs():
-    # 分离中英文
-    chinese_sents = [pair[0] for pair in sentences]
-    english_sents = [pair[1] for pair in sentences]
+class SimpleTokenizer:
+    @staticmethod
+    def pad_id():
+        return 0
     
-    # 生成词汇表
-    chinese_vocab = build_vocab(chinese_sents, chinese_tokenizer)
-    english_vocab = build_vocab(english_sents, english_tokenizer)
+    @staticmethod
+    def unk_id():
+        return 1
     
-    return chinese_vocab, english_vocab
+    @staticmethod
+    def bos_id():
+        return 2
+    
+    @ staticmethod
+    def eos_id():
+        return 3
+    
+    @staticmethod
+    def encode_as_pieces(text):
+        return text.split()
+    
+    def __init__(self, texts):
+        special_tokens = ['<pad>', '<unk>', '<s>', '</s>']
+        # 构建词汇表
+        counter = Counter()
+        for text in texts:
+            counter.update(self.__class__.encode_as_pieces(text))
+        self._token2id = {}
+        self._id2token = {}
+        # 添加特殊标记
+        for i, token in enumerate(special_tokens):
+            self._token2id[token] = i
+            self._id2token[i] = token
+        for i, token in enumerate(sorted(counter)):
+            j = i + len(special_tokens)
+            self._token2id[token] = j
+            self._id2token[j] = token
+    
+    def vocab_size(self):
+        return len(self._token2id)
+    
+    def __len__(self):
+        return self.vocab_size()
+    
+    def piece_to_id(self, piece):
+        return self._token2id.get(piece, self.__class__.unk_id())
+    
+    def id_to_piece(self, idx):
+        if idx not in self._id2token:
+            raise Exception("IndexError: Out of range: piece id is out of range.")
+        return self._id2token[idx]
+    
+    def tokenize(self, text):
+        return [self.piece_to_id(c) for c in self.__class__.encode_as_pieces(text)]
+    
+    def detokenize(self, ids):
+        pieces = []
+        for i in ids:
+            if i == self.__class__.unk_id():
+                pieces.append(' ⁇ ')
+            elif i >= 4:
+                pieces.append(self.id_to_piece(i))
+        return ' '.join(pieces)
 
-# 预测结果解码
-def decode_sequence(ids, vocab):
-    idx2token = {v: k for k, v in vocab.items()}
-    return ' '.join([idx2token.get(i, '<unk>')
-                     for i in ids if i not in [vocab['<pad>'], vocab['<sos>'], vocab['<eos>']]])
+class ChineseTokenizer(SimpleTokenizer):
+    @staticmethod
+    def encode_as_pieces(text):
+        return list(jieba.cut(text.strip()))
+    
+    def detokenize(self, ids):
+        pieces = []
+        for i in ids:
+            if i == self.__class__.unk_id():
+                pieces.append(' ⁇ ')
+            elif i >= 4:
+                pieces.append(self.id_to_piece(i))
+        return ''.join(pieces)
+
+class EnglishTokenizer(SimpleTokenizer):
+    @staticmethod
+    def encode_as_pieces(text):
+        return [token.strip().lower() for token in text.strip().split() if token]
 
 class TranslationDataset(Dataset):
     def __init__(self, sentences):
