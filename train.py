@@ -5,7 +5,7 @@ import torch.nn as nn
 
 from torch.utils.tensorboard import SummaryWriter
 
-from data import create_vocabs, create_dataloader
+from data import create_chinese_tokenizer, create_english_tokenizer, create_dataloader
 from Transformer import Transformer
 
 class Trainer:
@@ -226,16 +226,17 @@ class Trainer:
 # 示例用法
 if __name__ == '__main__':
     # 初始化模型和数据加载器
-    src_vocab, tgt_vocab = create_vocabs()
+    chinese_tokenizer = create_chinese_tokenizer()
+    english_tokenizer = create_english_tokenizer()
     
     # 创建模型
-    model = Transformer(len(src_vocab), len(tgt_vocab))
+    model = Transformer(chinese_tokenizer.vocab_size(), english_tokenizer.vocab_size())
     
     # 初始化参数
     model.init_parameters()
     
     # 定义损失函数和优化器
-    criterion = nn.CrossEntropyLoss(ignore_index=tgt_vocab['<pad>'])  # 忽略padding位置的损失
+    criterion = nn.CrossEntropyLoss(ignore_index=english_tokenizer.pad_id())  # 忽略padding位置的损失
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=1e-4,
@@ -247,8 +248,8 @@ if __name__ == '__main__':
     # 定义学习率调度器
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
     
-    train_loader = create_dataloader(src_vocab, tgt_vocab, batch_size=2, shuffle=True, drop_last=True)
-    val_loader = create_dataloader(src_vocab, tgt_vocab, batch_size=2)
+    train_loader = create_dataloader(chinese_tokenizer, english_tokenizer, batch_size=2, max_len=model.max_seq_len, shuffle=True, drop_last=True)
+    val_loader = create_dataloader(chinese_tokenizer, english_tokenizer, batch_size=2, max_len=model.max_seq_len)
     
     # 配置参数
     config = {
@@ -259,8 +260,8 @@ if __name__ == '__main__':
         'checkpoint': './checkpoints/checkpoint_best.pth',  # 可以指定预训练权重路径
         'print_interval_steps': 10,
         'save_interval_epochs': 5,
-        'src_pad_idx': src_vocab['<pad>'],
-        'tgt_pad_idx': tgt_vocab['<pad>']
+        'src_pad_idx': chinese_tokenizer.pad_id(),
+        'tgt_pad_idx': english_tokenizer.pad_id()
     }
     
     # 创建训练器

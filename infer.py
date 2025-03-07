@@ -1,38 +1,37 @@
 import os
 import torch
 
-from data import create_vocabs, chinese_tokenizer, decode_sequence
+from data import create_chinese_tokenizer, create_english_tokenizer
 from Transformer import Transformer
 
-def process_data(model, sentence, tokenizer, vocab, device='cpu'):
+def process_data(model, text, tokenizer, device='cpu'):
     """处理输入数据并生成编码器输出"""
-    tokens = tokenizer(sentence)[:model.max_seq_len]
-    src = [vocab.get(t, vocab['<unk>']) for t in tokens]
-    src = torch.LongTensor(src).unsqueeze(0).to(device)
-    src_mask = model.generate_src_mask(src, vocab['<pad>'])
+    tokens = tokenizer.tokenize(text)[:model.max_seq_len]
+    src = torch.LongTensor(tokens).unsqueeze(0).to(device)
+    src_mask = model.generate_src_mask(src, tokenizer.pad_id())
     with torch.no_grad():
         memory = model.encode(src, src_mask)
     return memory, src_mask
 
-def get_probs(model, memory, ys, src_mask, tgt_vocab):
+def get_probs(model, memory, ys, src_mask, tokenizer):
     """获取下一个token的概率分布"""
     ys = ys[:, -model.max_seq_len:]
-    tgt_mask = model.generate_tgt_mask(ys, tgt_vocab['<pad>'])
+    tgt_mask = model.generate_tgt_mask(ys, tokenizer.pad_id())
     with torch.no_grad():
         decoder_output = model.decode(ys, memory, tgt_mask, src_mask)
         output = model.generator(decoder_output[:, -1])
     return torch.log_softmax(output, dim=-1)
 
-def greedy_decode(model, sentence, tokenizer, src_vocab, tgt_vocab, max_len=50, device='cpu'):
+def greedy_decode(model, text, src_tokenizer, tgt_tokenizer, max_len=50, device='cpu'):
     model.eval()
     
-    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
+    memory, src_mask = process_data(model, text, src_tokenizer, device=device)
     
-    start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
+    start_token, end_token = tgt_tokenizer.bos_id(), tgt_tokenizer.eos_id()
     ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
     
     for _ in range(max_len - 1):
-        probs = get_probs(model, memory, ys, src_mask, tgt_vocab)
+        probs = get_probs(model, memory, ys, src_mask, tgt_tokenizer)
         next_token = torch.argmax(probs, dim=-1, keepdim=True)
         ys = torch.cat([ys, next_token], dim=-1)
         if next_token.item() == end_token:
@@ -44,14 +43,14 @@ def normalize_scores(seq, score, len_penalty=0.75):
     penalty = ((5 + len(seq)) / (5 + 1)) ** len_penalty  # Google的GNMT公式
     return score / penalty
 
-def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
+def beam_search_decode(model, text, src_tokenizer, tgt_tokenizer,
                        max_len=50, beam_width=5, len_penalty=0.75, device='cpu'):  # len_penalty长度惩罚系数
     model.eval()
     
-    memory, src_mask = process_data(model, sentence, tokenizer, src_vocab, device=device)
+    memory, src_mask = process_data(model, text, src_tokenizer, device=device)
     
     # 初始化：序列、分数、完成状态
-    start_token, end_token = tgt_vocab['<sos>'], tgt_vocab['<eos>']
+    start_token, end_token = tgt_tokenizer.bos_id(), tgt_tokenizer.eos_id()
     ys = torch.LongTensor([start_token]).unsqueeze(0).to(device)
     beam = [ ( ys, 0.0 ) ]  # (tokens, score)
     # 存储完整序列
@@ -68,7 +67,7 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
                 continue
                 
             # 获取下一个token的概率分布
-            probs = get_probs(model, memory, seq, src_mask, tgt_vocab)
+            probs = get_probs(model, memory, seq, src_mask, tgt_tokenizer)
             top_probs, top_indices = torch.topk(probs, beam_width, dim=-1)
             
             for i in range(beam_width):
@@ -100,10 +99,12 @@ def beam_search_decode(model, sentence, tokenizer, src_vocab, tgt_vocab,
     return sorted(completed, key=lambda x: x[1], reverse=True)
 
 if __name__ == '__main__':
-    src_vocab, tgt_vocab = create_vocabs()
+    # 初始化模型和数据加载器
+    chinese_tokenizer = create_chinese_tokenizer()
+    english_tokenizer = create_english_tokenizer()
     
     # 创建模型
-    model = Transformer(len(src_vocab), len(tgt_vocab))
+    model = Transformer(chinese_tokenizer.vocab_size(), english_tokenizer.vocab_size())
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
@@ -113,11 +114,11 @@ if __name__ == '__main__':
         checkpoint = torch.load(ckpt_path, weights_only=True)
         model.load_state_dict(checkpoint['model_state_dict'])
     
-    sentence = input('请输入中文句子：\n')
-    print('input:', sentence)
+    text = input('请输入中文句子：\n')
+    print('\ninput:', text)
     
-    predictions = greedy_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
-    print('greedy decode:', decode_sequence(predictions, tgt_vocab))
+    predictions = greedy_decode(model, text, chinese_tokenizer, english_tokenizer, device=device)
+    print('\ngreedy decode:', english_tokenizer.detokenize(predictions))
     
-    beam_search_result = beam_search_decode(model, sentence, chinese_tokenizer, src_vocab, tgt_vocab, device=device)
-    print('beam search decode:', decode_sequence(beam_search_result[0][0], tgt_vocab))
+    beam_search_result = beam_search_decode(model, text, chinese_tokenizer, english_tokenizer, device=device)
+    print('\nbeam search decode:', english_tokenizer.detokenize(beam_search_result[0][0]))
