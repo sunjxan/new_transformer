@@ -190,6 +190,9 @@ class Transformer(nn.Module):
         Returns:
             output (Tensor): 输出概率分布 (batch_size, tgt_seq_len, tgt_vocab_size)
         """
+        seq_len = input_ids.size(-1)
+        assert seq_len <= self.max_seq_len, f"序列长度{seq_len}超过最大限制{self.max_seq_len}"
+         
         # 1. 编码
         memory = self.encode(src, src_mask)  # (batch_size, src_seq_len, d_model)
         
