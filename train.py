@@ -246,7 +246,11 @@ if __name__ == '__main__':
     )
     
     # 定义学习率调度器
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.95)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=1,
+        gamma=0.95
+    )
     
     train_loader = create_dataloader(chinese_tokenizer, english_tokenizer, batch_size=2, max_len=model.max_seq_len, shuffle=True, drop_last=True)
     val_loader = create_dataloader(chinese_tokenizer, english_tokenizer, batch_size=2, max_len=model.max_seq_len)
