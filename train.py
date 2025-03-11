@@ -82,8 +82,8 @@ class Trainer:
             src, tgt = src.to(self.device), tgt.to(self.device)
             
             # 生成掩码
-            src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
-            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
+            src_mask = model.generate_src_mask(src, self.config['src_pad_id'])
+            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_id'])
             
             # 梯度清零
             self.optimizer.zero_grad()
@@ -144,8 +144,8 @@ class Trainer:
             src, tgt = src.to(self.device), tgt.to(self.device)
             
             # 生成掩码
-            src_mask = model.generate_src_mask(src, self.config['src_pad_idx'])
-            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_idx'])
+            src_mask = model.generate_src_mask(src, self.config['src_pad_id'])
+            tgt_mask = model.generate_tgt_mask(tgt, self.config['tgt_pad_id'])
             
             # 前向传播
             with torch.no_grad():
@@ -260,8 +260,8 @@ if __name__ == '__main__':
         'checkpoint': './checkpoints/checkpoint_best.pth',  # 可以指定预训练权重路径
         'print_interval_steps': 10,
         'save_interval_epochs': 5,
-        'src_pad_idx': chinese_tokenizer.pad_id(),
-        'tgt_pad_idx': english_tokenizer.pad_id()
+        'src_pad_id': chinese_tokenizer.pad_id(),
+        'tgt_pad_id': english_tokenizer.pad_id()
     }
     
     # 创建训练器
