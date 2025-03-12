@@ -114,8 +114,15 @@ if __name__ == '__main__':
         checkpoint = torch.load(ckpt_path, weights_only=True)
         model.load_state_dict(checkpoint['model_state_dict'])
     
-    text = input('请输入中文句子：\n')
-    print('\ninput:', text)
+    while True:
+        try:
+            text = input('请输入中文句子：').strip()
+        except:
+            print()
+            exit()
+        
+        if text:
+            break
     
     predictions = greedy_decode(model, text, chinese_tokenizer, english_tokenizer, device=device)
     print('\ngreedy decode:', english_tokenizer.detokenize(predictions))
