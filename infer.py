@@ -116,7 +116,7 @@ if __name__ == '__main__':
     
     while True:
         try:
-            text = input('请输入中文句子：').strip()
+            text = input('请输入中文句子: ').strip()
         except:
             print()
             exit()
