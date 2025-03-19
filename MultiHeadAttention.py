@@ -37,7 +37,7 @@ class ScaledDotProductAttention(nn.Module):
         # 应用掩码（如果需要）
         if mask is not None:
             # 将mask中为False的位置替换为负无穷大（softmax后趋近于0）
-            scores = scores.masked_fill(mask == 0, float('-inf'))  
+            scores = scores.masked_fill(mask == 0, float('-inf'))
             # mask需要能广播到scores的形状
             # src attention，mask形状(1, S)，广播后(S, S)，右侧为False，用于重新编码时忽略pad
             # tgt attention，mask形状(T, T)，右侧和右上方为False，用于重新编码时忽略pad和该词后面的词
@@ -94,9 +94,9 @@ class MultiHeadAttention(nn.Module):
         batch_size = Q.size(0)
         
         # 线性变换 + 分割多头
-        Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_q, d_k)
-        K = self.W_k(K).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
-        V = self.W_v(V).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, num_heads, seq_len_kv, d_k)
+        Q = self.W_q(Q).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_q, num_heads, d_k)
+        K = self.W_k(K).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
+        V = self.W_v(V).view(batch_size, -1, self.num_heads, self.d_k)  # (batch_size, seq_len_kv, num_heads, d_k)
         
         # 转置维度以便矩阵计算 (batch_size, num_heads, seq_len, d_k)
         Q = Q.transpose(1, 2).contiguous()
