@@ -99,6 +99,9 @@ def beam_search_decode(model, text, src_tokenizer, tgt_tokenizer,
     return sorted(completed, key=lambda x: x[1], reverse=True)
 
 if __name__ == '__main__':
+    # 设置随机种子（保证可重复性）
+    torch.manual_seed(0)
+    
     # 初始化模型和数据加载器
     chinese_tokenizer = create_chinese_tokenizer()
     english_tokenizer = create_english_tokenizer()
