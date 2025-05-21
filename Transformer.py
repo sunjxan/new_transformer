@@ -106,7 +106,7 @@ class Generator(nn.Module):
 
 class Transformer(nn.Module):
     def __init__(self, src_vocab_size, tgt_vocab_size, d_model=512, num_heads=8,
-                 num_encoder_layers=6, num_decoder_layers=6,d_ff=2048, max_seq_len=512, dropout=0.1):
+                 num_encoder_layers=6, num_decoder_layers=6, d_ff=2048, max_seq_len=512, dropout=0.1):
         """
         Transformer 模型
         Args:
@@ -205,20 +205,13 @@ class Transformer(nn.Module):
         
         return output
     
-    def init_parameters(self, init_type='xavier'):
+    def init_parameters(self):
         """
         初始化模型参数
-        Args:
-            init_type (str): 初始化类型，可选 'xavier'（默认）或 'kaiming'
         """
         for name, param in self.named_parameters():
             if param.dim() > 1:  # 仅初始化矩阵权重，忽略偏置和LayerNorm参数
-                if init_type == 'xavier':
-                    nn.init.xavier_uniform_(param)
-                elif init_type == 'kaiming':
-                    nn.init.kaiming_uniform_(param, mode='fan_in', nonlinearity='relu')
-                else:
-                    raise ValueError(f"不支持的初始化类型: {init_type}")
+                nn.init.xavier_uniform_(param)
             elif 'bias' in name:  # 偏置初始化为零
                 nn.init.zeros_(param)
             # LayerNorm参数保持默认初始化（gamma=1, beta=0）
@@ -247,21 +240,21 @@ class Transformer(nn.Module):
     
     2. 编码器（Encoder）
     每层包含：
-        1个多头注意力（4个线性层，无偏置项）：4 × (d_model × d_model)
+        1个多头注意力（4个线性层）：4 × (d_model × d_model + d_model)
         前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
         2个归一化层：2 × (d_model + d_model)
     最终归一化层：d_model + d_model
     总参数量：
-        num_encoder_layers × [4d² + 2d·d_ff + d_ff + 5d] + 2d
+        num_encoder_layers × [4d² + 2d·d_ff + d_ff + 9d] + 2d
     
     3. 解码器（Decoder）
     每层包含：
-        2个多头注意力（4个线性层，无偏置项）：2 × 4 × (d_model × d_model)
+        2个多头注意力（4个线性层）：2 × 4 × (d_model × d_model + d_model)
         前馈网络（2个线性层）：2 × d_model × d_ff + d_ff + d_model
         3个归一化层：3 × (d_model + d_model)
     最终归一化层：d_model + d_model
     总参数量：
-        num_decoder_layers × [8d² + 2d·d_ff + d_ff + 7d] + 2d
+        num_decoder_layers × [8d² + 2d·d_ff + d_ff + 15d] + 2d
     
     4. 生成器（Generator）
     线性层：d_model × tgt_vocab_size + tgt_vocab_size
