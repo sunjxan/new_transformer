@@ -5,30 +5,16 @@ import torch.nn as nn
 from Encoder import Encoder
 from Decoder import Decoder
 
-class Embeddings(nn.Module):
-    def __init__(self, vocab_size, d_model):
-        super().__init__()
-        self.embedding = nn.Embedding(vocab_size, d_model)
-        self.d_model = d_model
-    
-    def forward(self, x):
-        # 词嵌入后缩放
-        # 数值稳定性：在后续的注意力机制中，点积操作 Q·K^T 的结果会除以 sqrt(d_k)（其中 d_k = d_model）。在嵌入阶段提前乘以 sqrt(d_model)，可以保持数值量级的一致性。
-        # 梯度控制：防止词嵌入的初始值过小，导致梯度消失。
-        return self.embedding(x) * math.sqrt(self.d_model)
-
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=5000, dropout=0.1):
+    def __init__(self, d_model, max_len=5000):
         """
         位置编码（Positional Encoding）模块。
         
         Args:
             d_model (int): 输入的特征维度（即词嵌入的维度）。
             max_len (int): 支持的最大序列长度（默认为5000）。
-            dropout (float): Dropout概率（默认为0.1）。
         """
         super().__init__()
-        self.dropout = nn.Dropout(p=dropout)  # Dropout层
         
         # 初始化位置编码矩阵，shape: (max_len, d_model)
         pe = torch.zeros(max_len, d_model)
@@ -68,10 +54,23 @@ class PositionalEncoding(nn.Module):
         # self.pe[:, :x.size(1)] 的shape: (1, seq_len, d_model)
         # 通过广播机制，与输入x的shape (batch_size, seq_len, d_model) 相加
         x = x + self.pe[:, :x.size(1)].to(x.device)
-        
-        # 应用Dropout
-        x = self.dropout(x)
         return x
+
+class Embeddings(nn.Module):
+    def __init__(self, vocab_size, d_model, dropout=0.1):
+        super().__init__()
+        self.token_emb = nn.Embedding(vocab_size, d_model)
+        self.position_enc = PositionalEncoding(d_model)
+        self.dropout = nn.Dropout(dropout)
+        self.d_model = d_model
+    
+    def forward(self, x):
+        # 词嵌入后缩放
+        # 数值稳定性：在后续的注意力机制中，点积操作 Q·K^T 的结果会除以 sqrt(d_k)（其中 d_k = d_model）。在嵌入阶段提前乘以 sqrt(d_model)，可以保持数值量级的一致性。
+        # 梯度控制：防止词嵌入的初始值过小，导致梯度消失。
+        token_emb = self.token_emb(x) * math.sqrt(self.d_model)  # 缩放
+        x = self.position_enc(token_emb)
+        return self.dropout(x)
 
 class Generator(nn.Module):
     def __init__(self, d_model, vocab_size):
@@ -124,17 +123,14 @@ class Transformer(nn.Module):
         self.max_seq_len = max_seq_len
         
         # 1. 词嵌入层
-        self.src_embed = Embeddings(src_vocab_size, d_model)  # (src_vocab_size, d_model)
-        self.tgt_embed = Embeddings(tgt_vocab_size, d_model)  # (tgt_vocab_size, d_model)
+        self.src_embed = Embeddings(src_vocab_size, d_model, dropout)  # (src_vocab_size, d_model)
+        self.tgt_embed = Embeddings(tgt_vocab_size, d_model, dropout)  # (tgt_vocab_size, d_model)
         
-        # 2. 位置编码
-        self.positional_encoding = PositionalEncoding(d_model, max_seq_len, dropout)
-        
-        # 3. 编码器和解码器
+        # 2. 编码器和解码器
         self.encoder = Encoder(num_encoder_layers, d_model, num_heads, d_ff, dropout)
         self.decoder = Decoder(num_decoder_layers, d_model, num_heads, d_ff, dropout)
         
-        # 4. 最终线性层
+        # 3. 最终线性层
         self.generator = Generator(d_model, tgt_vocab_size)  # (d_model, tgt_vocab_size)
     
     def encode(self, src, src_mask=None):
@@ -149,10 +145,7 @@ class Transformer(nn.Module):
         # 1. 词嵌入
         src_emb = self.src_embed(src)  # (batch_size, src_seq_len, d_model)
         
-        # 2. 位置编码
-        src_emb = self.positional_encoding(src_emb)  # (batch_size, src_seq_len, d_model)
-        
-        # 3. 编码器处理
+        # 2. 编码器处理
         memory = self.encoder(src_emb, src_mask)  # (batch_size, src_seq_len, d_model)
         
         return memory
@@ -171,10 +164,7 @@ class Transformer(nn.Module):
         # 1. 词嵌入
         tgt_emb = self.tgt_embed(tgt)  # (batch_size, tgt_seq_len, d_model)
         
-        # 2. 位置编码
-        tgt_emb = self.positional_encoding(tgt_emb)  # (batch_size, tgt_seq_len, d_model)
-        
-        # 3. 解码器处理
+        # 2. 解码器处理
         decoder_output = self.decoder(tgt_emb, memory, tgt_mask, src_mask)  # (batch_size, tgt_seq_len, d_model)
         
         return decoder_output
